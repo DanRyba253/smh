@@ -6,25 +6,28 @@
 
 module Focusers where
 
-import           Common          (Comparison (..), Evaluatable (..), Focus (..),
-                                  Focuser (..), IfExpr (..), Mapping, Oper (..),
-                                  Quantor (..), Range, _toListUnsafe,
-                                  composeFocusers, getIndexes, makeFilteredText,
-                                  mapText, safeDiv, showScientific,
-                                  toListUnsafe, toTextUnsafe, unsort)
-import           Control.Lens    (lens, partsOf, (^..))
-import           Data.Char       (isAlpha, isAlphaNum, isDigit, isLower,
-                                  isSpace, isUpper)
-import           Data.Data.Lens  (biplate)
-import           Data.Function   (on)
-import           Data.Functor    ((<&>))
-import           Data.List       (sortBy, transpose)
-import           Data.Maybe      (mapMaybe)
-import           Data.Ord        (comparing)
-import           Data.Scientific (Scientific)
-import           Data.Text       (Text)
-import qualified Data.Text       as T
-import           Text.Read       (readMaybe)
+import           Common               (Comparison (..), Evaluatable (..),
+                                       Focus (..), Focuser (..), IfExpr (..),
+                                       Mapping, Oper (..), Quantor (..), Range,
+                                       _toListUnsafe, composeFocusers,
+                                       getIndexes, makeFilteredText, mapText,
+                                       safeDiv, showScientific, toListUnsafe,
+                                       toTextUnsafe, unsort)
+import           Control.Lens         (lens, partsOf, (^..))
+import           Data.Char            (isAlpha, isAlphaNum, isDigit, isLower,
+                                       isSpace, isUpper)
+import           Data.Data.Lens       (biplate)
+import           Data.Function        (on)
+import           Data.Functor         ((<&>))
+import           Data.List            (sortBy, transpose)
+import           Data.Maybe           (mapMaybe)
+import           Data.Ord             (comparing)
+import           Data.Scientific      (Scientific)
+import           Data.Text            (Text)
+import qualified Data.Text            as T
+import           Text.Read            (readMaybe)
+import           Text.Regex.TDFA
+import           Text.Regex.TDFA.Text
 
 focusId :: Focuser
 focusId = FTrav id
@@ -384,3 +387,28 @@ focusIsSpace :: Focuser
 focusIsSpace = logicFocuser (\case
     FText s -> T.all isSpace s
     _         -> False)
+
+focusRegex :: Text -> Focuser
+focusRegex regex = FTrav $ \f focus -> case focus of
+    FText s ->
+        let matchIdxs = getAllMatches (s =~ regex)
+            matches = fromIndexes s matchIdxs
+            newMatches = map toTextUnsafe <$> traverse (f . FText) matches
+        in  FText . updateText (T.length s) s matchIdxs <$> newMatches
+    _ -> pure focus
+  where
+    fromIndexes :: Text -> [(Int, Int)] -> [Text]
+    fromIndexes _ []            = []
+    fromIndexes s ((i, j) : is) = T.take j (T.drop i s) : fromIndexes s is
+
+    updateText :: Int -> Text -> [(Int, Int)] -> [Text] -> Text
+    updateText sLen s is ts = T.unfoldrN sLen builder (0, is, ts)
+      where
+        builder :: (Int, [(Int, Int)], [Text]) -> Maybe (Char, (Int, [(Int, Int)], [Text]))
+        builder (n, [], []) = Just (T.index s n, (n + 1, [], []))
+        builder (n, (i, j) : is, t : ts)
+            | n >= sLen = Nothing
+            | n < i = Just (T.index s n, (n + 1, (i, j) : is, t : ts))
+            | n >= j + i = builder (n, is, ts)
+            | otherwise = Just (T.index t (n - i), (n + 1, (i, j) : is, t : ts))
+        builder _ = error "logic error in updateText. Please report this bug."

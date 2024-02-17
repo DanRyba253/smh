@@ -21,7 +21,7 @@ import           Focusers             (focusAverage, focusCollect, focusCols,
                                        focusMaxLexBy, focusMinBy, focusMinLexBy,
                                        focusProduct, focusSlice, focusSortedBy,
                                        focusSortedLexBy, focusSpace, focusSum,
-                                       focusTo, focusWords)
+                                       focusTo, focusWords, focusRegex)
 import           Mappings             (mappingAbs, mappingAdd, mappingAppend,
                                        mappingDiv, mappingId, mappingLength,
                                        mappingLower, mappingMap, mappingMult,
@@ -33,7 +33,7 @@ import           Mappings             (mappingAbs, mappingAdd, mappingAppend,
 import           Text.Megaparsec      (MonadParsec (try), anySingle, between,
                                        choice, empty, label, many, noneOf,
                                        notFollowedBy, optional, satisfy, sepBy,
-                                       sepBy1, (<|>))
+                                       sepBy1, (<|>), takeWhile1P)
 import           Text.Megaparsec.Char (char, string)
 
 -- Focuser parsers
@@ -81,6 +81,7 @@ parseFocuser = label "valid focuser" $ choice
     , symbol "isAlphaNum" $> focusIsAlphaNum
     , symbol "isAlpha" $> focusIsAlpha
     , symbol "isSpace" $> focusIsSpace
+    , parseFocusRegex
     ]
 
 parseFocusers :: Parser [Focuser]
@@ -232,6 +233,10 @@ parseIfExprShort = do
     e <- parseEvaluatable
     return $ IfSingle $ Comparison (QAny, e) OpEq (QAny, EText "1")
 
+parseFocusRegex :: Parser Focuser
+parseFocusRegex = do
+    symbol "regex"
+    focusRegex <$> stringLiteral
 -- mapping parsers
 
 parseMapping :: Parser Mapping
@@ -282,13 +287,13 @@ parseEvaluatableLong =
 stringLiteral :: Parser Text
 stringLiteral = label "string literal" $ lexeme $ do
     char '"'
-    inner <- many $ do
-        x <- noneOf ['\"']
-        if x == '\\'
-            then anySingle
-            else return x
+    inner <- T.concat <$> many (choice
+        [ takeWhile1P Nothing (\c -> c /= '/' && c /= '"')
+        , try (string "\\\"" $> "\"")
+        , string "\\"
+        ])
     char '"'
-    return $ T.pack inner
+    return inner
 
 parseMappingAppend :: Parser Mapping
 parseMappingAppend = do
