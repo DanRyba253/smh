@@ -1,0 +1,208 @@
+Focusers:
+    id:
+        should change nothing
+    each:
+        on strings:
+            should focus on a list of characters
+        on lists:
+            should focus on a list of items
+    words:
+        basic:
+            should focus on all words
+        over id:
+            should not change anything
+    lines:
+        basic:
+            should focus on all lines
+        over id:
+            should not change anything
+    ws: 
+        basic:
+            should focus on all whitespace
+        over id:
+            should not change anything
+    cols:
+        basic:
+            should focus on all columns
+        over id:
+            should not change anything
+    slice:
+        one number:
+            should focus on one element
+        normal range:
+            should focus on a range
+        range from beggining:
+            should focus on a range from the beginning
+        range till end:
+            should focus on a range till the end
+        range with negative numbers:
+            shold process negative numbers correctly
+        range with out of bounds numbers:
+            should process out of bounds numbers correctly
+        multiple ranges:
+            should merge multiple ranges
+        no ranges:
+            should not focus on anything
+        from-to range:
+            should focus on everything
+    sortedLexBy:
+        sortedLexBy id:
+            should sort strings lexicographically
+            should not focus on lists
+        over id:
+            should not change anything
+    sortedLex == sortedLexBy id
+    minLexBy f == sortedLexBy f . [0]
+    maxLexBy f == sortedLexBy f . [-1] 
+    minLex = minLexBy id
+    maxLex = maxLexBy id
+    sortedBy:
+        sortedBy id:
+            should sort number-strings lexicographically
+            should not sort lists or non-number-strings
+        over id:
+            should not change anything
+    sorted == sortedBy id
+    minBy f == sortedBy f . [0]
+    maxBy f == sortedBy f . [-1]
+    min = minBy id
+    max = maxBy id
+    index:
+        with positive numbers:
+            focus on the element with the given index
+        with negative numbers:
+            handle negative numbers correctly
+        with out of bounds numbers:
+            don't focus on anything
+    to:
+        to mapping|get == id|over mapping
+        check for various mappings
+    length:
+        length == to length
+        length is correct
+    focusers in parenthesis work
+    sum:
+        correctly sums up only number-strings
+    product:
+        correctly multiplies only number-strings
+    average:
+        correctly averages only number-strings
+    add n:
+        correctly adds only to number-strings
+    sub n:
+        correctly subtracts only from number-strings
+    mult n:
+        correctly multiplies only number-strings
+    div n:
+        correctly divides only number-strings
+    pow n:
+        correctly raises only number-strings to the power of n
+    abs:
+        correctly computes the absolute value of a number-string
+    sing:
+        correctly computes the sign of a number-string
+    if:
+        one comp:
+            two numbers:
+                should compare two numbers
+            two strings:
+                should compare two strings
+            number and a string:
+                if strinf is a number-string it should be compared to the number
+            two focusers:
+                should compare their focuses
+            focuser and a string:
+                should compare the focus of the focuser and the string
+            focuser and a number:
+                should compare the focus of the focuser and the number if the focus is a number-string
+            >,<,>=,<= should only work on strings
+            ==,!= can work on strings or lists
+        multiple comps:
+            should correctly handle && and ||
+        should correctly handle brackets
+    isUpper:
+        should check that a string is all uppercase
+    isLower:
+        should check that a string is all lowercase
+    isAlpha:
+        should check that a string is all alphabetic
+    isDigit:
+        should check that a string is all digits
+    isAlphaNum:
+        should check that a string is all alphabetic and digits
+    isSpace:
+        should check that a string is all whitespace
+    collect:
+        should collect all focuses into a list
+Mappings:
+    reverse:
+        should correctly reverse a list or a string
+        reverse . reverse == id
+    length:
+        should correctly compute the length of a list or a string
+    map:
+        map mapping should apply mapping to all elements of a list or all characters of a string
+        map id == id
+    append:
+        append "" == id
+        append number should append the number as a string
+        append string should append the string
+        append focuser should append the focus of the focuser if the focus is a string
+    prepend:
+        prepend "" == id
+        prepend number should prepend the number as a string
+        prepend string should prepend the string
+        prepend focuser should prepend the focus of the focuser if the focus is a string
+    upper should turn all characters in a string to uppercase
+    lower should turn all characters in a string to lowercase
+    should correctly handle mapping within brackets
+    add n:
+        correctly adds only to number-strings
+    sub n:
+        correctly subtracts only from number-strings
+    mult n:
+        correctly multiplies only number-strings
+    div n:
+        correctly divides only number-strings
+    pow n:
+        correctly raises only number-strings to the power of n
+    abs:
+        correctly computes the absolute value of a number-string
+    sing:
+        correctly computes the sign of a number-string
+    slice:
+        one number:
+            should focus on one element
+        normal range:
+            should focus on a range
+        range from beggining:
+            should focus on a range from the beginning
+        range till end:
+            should focus on a range till the end
+        range with negative numbers:
+            shold process negative numbers correctly
+        range with out of bounds numbers:
+            should process out of bounds numbers correctly
+        multiple ranges:
+            should merge multiple ranges
+        no ranges:
+            should not focus on anything
+        from-to range:
+            should focus on everything
+    sortLexBy:
+        sortLexBy f:
+            should sort strings lexicographically
+            should not sort lists unless the focus is a string
+    sortLex:
+        sortLex == sortLexBy id
+    sortBy:
+        sortBy f:
+            should sort number-strings
+            should not sort lists or non-number-strings unless the focus is a number-string
+    sort:
+        sort == sortBy id
+    id:
+        should change nothing
+
+
+
