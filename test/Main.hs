@@ -166,6 +166,7 @@ focuserTests = testGroup "Focuser Tests"
         , "words.if 1=all each.isUpper|get-tree" $= show (filter (all isUpper) $ words input)
         , "words.if 1=any each.isUpper|get-tree" $= show (filter (any isUpper) $ words input)
         , "words.if each=each|get-tree" $= show (filter allEqual $ words input)
+        , "words.if =\"ee\"|get-tree" $=$ "words.if id=\"ee\"|get-tree"
         ]
     , testGroup "isUpper"
         [ "words.if isUpper|get-tree" $= show (filter (all isUpper) $ words input)

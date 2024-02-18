@@ -210,7 +210,7 @@ parseAtom = between (symbol "(") (symbol ")") parseIfExpr <|> parseComp
 parseComp :: Parser IfExpr
 parseComp = do
     q1 <- fromMaybe QAll <$> optional parseQuantor
-    lhs <- parseEvaluatableLong
+    lhs <- fromMaybe (EFocuser focusId) <$> optional parseEvaluatableLong
     comp <- parseCompOp
     q2 <- fromMaybe QAll <$> optional parseQuantor
     rhs <- parseEvaluatableLong
