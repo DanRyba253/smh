@@ -21,7 +21,7 @@ import           Focusers             (focusAverage, focusCollect, focusCols,
                                        focusMaxLexBy, focusMinBy, focusMinLexBy,
                                        focusProduct, focusSlice, focusSortedBy,
                                        focusSortedLexBy, focusSpace, focusSum,
-                                       focusTo, focusWords, focusRegex)
+                                       focusTo, focusWords, focusRegex, focusFilter)
 import           Mappings             (mappingAbs, mappingAdd, mappingAppend,
                                        mappingDiv, mappingId, mappingLength,
                                        mappingLower, mappingMap, mappingMult,
@@ -82,6 +82,7 @@ parseFocuser = label "valid focuser" $ choice
     , symbol "isAlpha" $> focusIsAlpha
     , symbol "isSpace" $> focusIsSpace
     , parseFocusRegex
+    , parseFocusFilter
     ]
 
 parseFocusers :: Parser [Focuser]
@@ -230,13 +231,19 @@ parseCompOp = choice
 
 parseIfExprShort :: Parser IfExpr
 parseIfExprShort = do
+    q <- fromMaybe QAll <$> optional parseQuantor
     e <- parseEvaluatable
-    return $ IfSingle $ Comparison (QAny, e) OpEq (QAny, EText "1")
+    return $ IfSingle $ Comparison (q, e) OpEq (QAny, EText "1")
 
 parseFocusRegex :: Parser Focuser
 parseFocusRegex = do
     symbol "regex"
     focusRegex <$> stringLiteral
+
+parseFocusFilter :: Parser Focuser
+parseFocusFilter = do
+    lexeme $ string "filter" >> notFollowedBy (satisfy isAlphaNum)
+    focusFilter <$> parseIfExpr
 -- mapping parsers
 
 parseMapping :: Parser Mapping

@@ -161,6 +161,11 @@ focuserTests = testGroup "Focuser Tests"
         , "words.if ([0].isUpper=1 || len>1) && len<3|get-tree" $=
             show (filter (\w -> (isUpper (head w) || length w > 1) && length w < 3) $ words input)
         , "words.if len|get-tree" $= show (filter (\w -> length w == 1) $ words input)
+        , "words.if all (each.isUpper)|get-tree" $= show (filter (all isUpper) $ words input)
+        , "words.if any (each.isUpper)|get-tree" $= show (filter (any isUpper) $ words input)
+        , "words.if 1=all each.isUpper|get-tree" $= show (filter (all isUpper) $ words input)
+        , "words.if 1=any each.isUpper|get-tree" $= show (filter (any isUpper) $ words input)
+        , "words.if each=each|get-tree" $= show (filter allEqual $ words input)
         ]
     , testGroup "isUpper"
         [ "words.if isUpper|get-tree" $= show (filter (all isUpper) $ words input)
@@ -183,6 +188,8 @@ focuserTests = testGroup "Focuser Tests"
     , testGroup "collect"
         [ "<words>|get-tree" $= show [words input]
         ]
+    , testGroup "filter"
+        [ "<words>.filter len<3.each|get-tree" $=$ "words.if len<3|get-tree" ]
     ]
 
 mappingTests :: TestTree
@@ -256,6 +263,14 @@ mappingTests = testGroup "Mapping Tests"
         [ "<words>|over id" $= input
         ]
     ]
+
+allEqual :: (Eq a) => [a] -> Bool
+allEqual [] = True
+allEqual (x:xs) = all (== x) xs
+
+anyEqual :: (Eq a) => [a] -> Bool
+anyEqual [] = False
+anyEqual (x:xs) = x `elem` xs || anyEqual xs
 
 mapNums :: (Scientific -> Scientific) -> String -> String
 mapNums f str =

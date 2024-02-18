@@ -412,3 +412,6 @@ focusRegex regex = FTrav $ \f focus -> case focus of
             | n >= j + i = builder (n, is, ts)
             | otherwise = Just (T.index t (n - i), (n + 1, (i, j) : is, t : ts))
         builder _ = error "logic error in updateText. Please report this bug."
+
+focusFilter :: IfExpr -> Focuser
+focusFilter pred = focusCollect $ focusEach `composeFocusers` focusIf pred
