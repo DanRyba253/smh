@@ -21,7 +21,7 @@ import           Focusers             (focusAverage, focusCollect, focusCols,
                                        focusMaxLexBy, focusMinBy, focusMinLexBy,
                                        focusProduct, focusSlice, focusSortedBy,
                                        focusSortedLexBy, focusSpace, focusSum,
-                                       focusTo, focusWords, focusRegex, focusFilter)
+                                       focusTo, focusWords, focusRegex, focusFilter, focusContains, focusStartsWith, focusEndsWith)
 import           Mappings             (mappingAbs, mappingAdd, mappingAppend,
                                        mappingDiv, mappingId, mappingLength,
                                        mappingLower, mappingMap, mappingMult,
@@ -83,6 +83,9 @@ parseFocuser = label "valid focuser" $ choice
     , symbol "isSpace" $> focusIsSpace
     , parseFocusRegex
     , parseFocusFilter
+    , parseFocusContains
+    , parseFocusStartsWith
+    , parseFocusEndsWith
     ]
 
 parseFocusers :: Parser [Focuser]
@@ -244,6 +247,21 @@ parseFocusFilter :: Parser Focuser
 parseFocusFilter = do
     lexeme $ string "filter" >> notFollowedBy (satisfy isAlphaNum)
     focusFilter <$> parseIfExpr
+
+parseFocusContains :: Parser Focuser
+parseFocusContains = do
+    symbol "contains"
+    focusContains <$> stringLiteral
+
+parseFocusStartsWith :: Parser Focuser
+parseFocusStartsWith = do
+    symbol "startsWith"
+    focusStartsWith <$> stringLiteral
+
+parseFocusEndsWith :: Parser Focuser
+parseFocusEndsWith = do
+    symbol "endsWith"
+    focusEndsWith <$> stringLiteral
 -- mapping parsers
 
 parseMapping :: Parser Mapping

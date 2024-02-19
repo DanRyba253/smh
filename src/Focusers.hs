@@ -415,3 +415,27 @@ focusRegex regex = FTrav $ \f focus -> case focus of
 
 focusFilter :: IfExpr -> Focuser
 focusFilter pred = focusCollect $ focusEach `composeFocusers` focusIf pred
+
+focusContains :: Text -> Focuser
+focusContains text = FTrav $ lens contains const
+  where
+    contains focus = case focus of
+        FText s   -> FText $ if T.isInfixOf text s then "1" else "0"
+        FList lst -> FText $ if any check lst then "1" else "0"
+    check focus = case focus of
+        FText s -> text == s
+        _       -> False
+
+focusStartsWith :: Text -> Focuser
+focusStartsWith text = FTrav $ lens starts const
+  where
+    starts focus = case focus of
+        FText s -> FText $ if T.isPrefixOf text s then "1" else "0"
+        _       -> FText "0"
+
+focusEndsWith :: Text -> Focuser
+focusEndsWith text = FTrav $ lens ends const
+  where
+    ends focus = case focus of
+        FText s -> FText $ if T.isSuffixOf text s then "1" else "0"
+        _       -> FText "0"
