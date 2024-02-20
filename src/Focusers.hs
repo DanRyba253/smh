@@ -439,3 +439,8 @@ focusEndsWith text = FTrav $ lens ends const
     ends focus = case focus of
         FText s -> FText $ if T.isSuffixOf text s then "1" else "0"
         _       -> FText "0"
+
+focusLength :: Focuser
+focusLength = FTrav $ \f focus -> case focus of
+    FText s -> f . FText . T.pack . show . T.length $ s
+    flst@(FList lst) -> flst <$ f (FText . T.pack . show . length $ lst)

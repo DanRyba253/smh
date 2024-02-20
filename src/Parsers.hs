@@ -21,7 +21,7 @@ import           Focusers             (focusAverage, focusCollect, focusCols,
                                        focusMaxLexBy, focusMinBy, focusMinLexBy,
                                        focusProduct, focusSlice, focusSortedBy,
                                        focusSortedLexBy, focusSpace, focusSum,
-                                       focusTo, focusWords, focusRegex, focusFilter, focusContains, focusStartsWith, focusEndsWith)
+                                       focusTo, focusWords, focusRegex, focusFilter, focusContains, focusStartsWith, focusEndsWith, focusLength)
 import           Mappings             (mappingAbs, mappingAdd, mappingAppend,
                                        mappingDiv, mappingId, mappingLength,
                                        mappingLower, mappingMap, mappingMult,
@@ -58,7 +58,7 @@ parseFocuser = label "valid focuser" $ choice
     , parseFocusIndex
     , symbol "sorted" $> focusSortedBy focusId
     , parseFocusTo
-    , symbol "len" $> focusTo mappingLength
+    , symbol "len" $> focusLength
     , parseFocusMinBy
     , parseFocusMaxBy
     , symbol "min" $> focusMinBy focusId
