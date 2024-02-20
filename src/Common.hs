@@ -4,7 +4,7 @@
 module Common(module Common) where
 
 import           Control.Applicative        (empty)
-import           Control.Lens               (Lens', Traversal', lens)
+import           Control.Lens               (Lens', Traversal', lens, (^..))
 import           Control.Loop               (numLoop)
 import           Control.Monad              (forM_)
 import           Control.Monad.ST.Strict    (ST, runST)
@@ -157,3 +157,10 @@ makeFilteredText maxLen is str = T.unfoldrN maxLen builder (0, is)
     builder (_, [])     = Nothing
     builder (n, i : is) = Just (T.index str i, (n + 1, is))
 
+focusTo :: Mapping -> Focuser
+focusTo mapping = FTrav $ lens mapping const
+
+mappingTo :: Focuser -> Mapping
+mappingTo (FTrav trav) focus = case (focus, focus ^.. trav) of
+    (FText _, [FText str]) -> FText str
+    _                      -> focus

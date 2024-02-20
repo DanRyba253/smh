@@ -216,9 +216,6 @@ focusIndex n_ = FTrav $ \f focus -> case focus of
             | n == i    = Just (newC, n + 1)
             | otherwise = Just (T.index str n, n + 1)
 
-focusTo :: Mapping -> Focuser
-focusTo mapping = FTrav $ lens mapping const
-
 focusMinBy :: Focuser -> Focuser
 focusMinBy f = focusSortedBy f `composeFocusers` focusIndex 0
 
@@ -265,23 +262,34 @@ focusSum :: Focuser
 focusSum = FTrav $ lens getSum const
 
 getSum :: Focus -> Focus
-getSum focus = FText $ showScientific $ sum $
-    mapMaybe readMaybeScientific $ focus ^.. biplate
+getSum focus = case focus of
+    FList _ -> FText $ showScientific $ sum $
+        mapMaybe readMaybeScientific $ focus ^.. biplate
+    FText s -> FText $ showScientific $ sum $
+        mapMaybe (readMaybeScientific . T.singleton) $ T.unpack s
 
 focusProduct :: Focuser
 focusProduct = FTrav $ lens getProduct const
 
 getProduct :: Focus -> Focus
-getProduct focus = FText $ showScientific $ product $
-    mapMaybe readMaybeScientific $ focus ^.. biplate
+getProduct focus = case focus of
+    FList _ -> FText $ showScientific $ product $
+        mapMaybe readMaybeScientific $ focus ^.. biplate
+    FText s -> FText $ showScientific $ product $
+        mapMaybe (readMaybeScientific . T.singleton) $ T.unpack s
 
 focusAverage :: Focuser
 focusAverage = FTrav $ lens getAverage const
 
 getAverage :: Focus -> Focus
-getAverage focus =
-    let ns = mapMaybe readMaybeScientific $ focus ^.. biplate
-    in  FText $ showScientific $ sum ns `safeDiv` fromIntegral (length ns)
+getAverage focus = case focus of
+    FList _ -> FText $ showScientific $ average $
+        mapMaybe readMaybeScientific $ focus ^.. biplate
+    FText s -> FText $ showScientific $ average $
+        mapMaybe (readMaybeScientific . T.singleton) $ T.unpack s
+
+average :: [Scientific] -> Scientific
+average xs = sum xs / fromIntegral (length xs)
 
 readMaybeScientific :: Text -> Maybe Scientific
 readMaybeScientific = readMaybe . T.unpack
@@ -442,5 +450,5 @@ focusEndsWith text = FTrav $ lens ends const
 
 focusLength :: Focuser
 focusLength = FTrav $ \f focus -> case focus of
-    FText s -> f . FText . T.pack . show . T.length $ s
+    FText s          -> f . FText . T.pack . show . T.length $ s
     flst@(FList lst) -> flst <$ f (FText . T.pack . show . length $ lst)

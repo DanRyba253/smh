@@ -60,3 +60,5 @@ parseActionSet = do
 getTree :: Action
 getTree input (FTrav trav) = do
     putStr $ show $ FText input ^.. trav
+
+

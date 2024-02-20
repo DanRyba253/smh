@@ -5,23 +5,26 @@ module Parsers where
 import           Common               (Comparison (..), Evaluatable (..),
                                        Focuser (..), IfExpr (..), Mapping,
                                        Oper (..), Parser, Quantor (..),
-                                       Range (..), composeFocusers,
+                                       Range (..), composeFocusers, focusTo,
                                        foldFocusers, foldMappings, integer,
-                                       lexeme, scient, symbol)
+                                       lexeme, scient, symbol, mappingTo)
 import           Data.Char            (isAlphaNum)
 import           Data.Functor         (($>))
 import           Data.Maybe           (fromMaybe)
 import           Data.Text            (Text)
 import qualified Data.Text            as T
 import           Focusers             (focusAverage, focusCollect, focusCols,
-                                       focusEach, focusId, focusIf, focusIndex,
-                                       focusIsAlpha, focusIsAlphaNum,
-                                       focusIsDigit, focusIsLower, focusIsSpace,
-                                       focusIsUpper, focusLines, focusMaxBy,
+                                       focusContains, focusEach, focusEndsWith,
+                                       focusFilter, focusId, focusIf,
+                                       focusIndex, focusIsAlpha,
+                                       focusIsAlphaNum, focusIsDigit,
+                                       focusIsLower, focusIsSpace, focusIsUpper,
+                                       focusLength, focusLines, focusMaxBy,
                                        focusMaxLexBy, focusMinBy, focusMinLexBy,
-                                       focusProduct, focusSlice, focusSortedBy,
-                                       focusSortedLexBy, focusSpace, focusSum,
-                                       focusTo, focusWords, focusRegex, focusFilter, focusContains, focusStartsWith, focusEndsWith, focusLength)
+                                       focusProduct, focusRegex, focusSlice,
+                                       focusSortedBy, focusSortedLexBy,
+                                       focusSpace, focusStartsWith, focusSum,
+                                       focusWords)
 import           Mappings             (mappingAbs, mappingAdd, mappingAppend,
                                        mappingDiv, mappingId, mappingLength,
                                        mappingLower, mappingMap, mappingMult,
@@ -33,7 +36,7 @@ import           Mappings             (mappingAbs, mappingAdd, mappingAppend,
 import           Text.Megaparsec      (MonadParsec (try), anySingle, between,
                                        choice, empty, label, many, noneOf,
                                        notFollowedBy, optional, satisfy, sepBy,
-                                       sepBy1, (<|>), takeWhile1P)
+                                       sepBy1, takeWhile1P, (<|>))
 import           Text.Megaparsec.Char (char, string)
 
 -- Focuser parsers
@@ -287,6 +290,7 @@ parseMapping = label "valid mapping" $ choice
     , parseMappingSortBy
     , symbol "sort" $> mappingSortBy focusId
     , symbol "id" $> mappingId
+    , parseMappingTo
     ]
 
 parseMappings :: Parser [Mapping]
@@ -369,3 +373,9 @@ parseMappingSortLexBy :: Parser Mapping
 parseMappingSortLexBy = do
     lexeme $ string "sortLexBy" >> notFollowedBy (satisfy isAlphaNum)
     mappingSortLexBy <$> parseFocuser
+
+parseMappingTo :: Parser Mapping
+parseMappingTo = do
+    lexeme $ string "to" >> notFollowedBy (satisfy isAlphaNum)
+    focuser <- foldFocusers <$> parseFocusers
+    return $ mappingTo focuser
