@@ -278,18 +278,19 @@ getProduct focus = case focus of
     FText s -> FText $ showScientific $ product $
         mapMaybe (readMaybeScientific . T.singleton) $ T.unpack s
 
-focusAverage :: Focuser
-focusAverage = FTrav $ lens getAverage const
+focusAverage :: Scientific -> Focuser
+focusAverage n = FTrav $ lens (getAverage n) const
 
-getAverage :: Focus -> Focus
-getAverage focus = case focus of
-    FList _ -> FText $ showScientific $ average $
+getAverage :: Scientific -> Focus -> Focus
+getAverage n focus = case focus of
+    FList _ -> FText $ showScientific $ (average n) $
         mapMaybe readMaybeScientific $ focus ^.. biplate
-    FText s -> FText $ showScientific $ average $
+    FText s -> FText $ showScientific $ (average n) $
         mapMaybe (readMaybeScientific . T.singleton) $ T.unpack s
 
-average :: [Scientific] -> Scientific
-average xs = sum xs / fromIntegral (length xs)
+average :: Scientific -> [Scientific] -> Scientific
+average n [] = n
+average _ xs = sum xs / fromIntegral (length xs)
 
 readMaybeScientific :: Text -> Maybe Scientific
 readMaybeScientific = readMaybe . T.unpack

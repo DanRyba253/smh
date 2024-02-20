@@ -69,7 +69,7 @@ parseFocuser = label "valid focuser" $ choice
     , between (symbol "(") (symbol ")") $ foldFocusers <$> parseFocusers
     , symbol "sum" $> focusSum
     , symbol "product" $> focusProduct
-    , symbol "average" $> focusAverage
+    , parseFocusAverage
     , parseFocusAdd
     , parseFocusSub
     , parseFocusMult
@@ -265,6 +265,13 @@ parseFocusEndsWith :: Parser Focuser
 parseFocusEndsWith = do
     symbol "endsWith"
     focusEndsWith <$> stringLiteral
+
+parseFocusAverage :: Parser Focuser
+parseFocusAverage = do
+    symbol "average"
+    def <- fromMaybe 0 <$> optional scient
+    return $ focusAverage def
+
 -- mapping parsers
 
 parseMapping :: Parser Mapping

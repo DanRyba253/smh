@@ -16,6 +16,7 @@ import           System.Process   (readProcess)
 import           Test.Tasty       (TestTree, defaultMain, testGroup)
 import           Test.Tasty.HUnit (testCase, (@?=))
 import           Text.Read        (readMaybe)
+import Focusers (readMaybeScientific)
 
 main :: IO ()
 main = defaultMain $ testGroup "All" [focuserTests, mappingTests]
@@ -107,12 +108,18 @@ focuserTests = testGroup "Focuser Tests"
         ]
     , testGroup "sum"
         [ "<words>.sum|get-tree" $= show [showScientific (sum $ inputNums input)]
+        , "words.sum|get-tree" $=
+            show (map (showScientific . sum . mapMaybe (readMaybeScientific . T.pack . (:[]))) $ words input)
         ]
     , testGroup "product"
         [ "<words>.product|get-tree" $= show [showScientific (product $ inputNums input)]
+        , "words.product|get-tree" $=
+            show (map (showScientific . product . mapMaybe (readMaybeScientific . T.pack . (:[]))) $ words input)
         ]
     , testGroup "average"
         [ "<words>.average|get-tree" $= show [showScientific (average $ inputNums input)]
+        , "words.average|get-tree" $=
+            show (map (showScientific . average . mapMaybe (readMaybeScientific . T.pack . (:[]))) $ words input)
         ]
     , testGroup "add"
         [ "<words.add 1>.sum|get-tree" $= show [showScientific (sum $ map (+1) $ inputNums input)]
@@ -263,6 +270,8 @@ mappingTests = testGroup "Mapping Tests"
     , testGroup "id"
         [ "<words>|over id" $= input
         ]
+    , testGroup "to"
+        [ "words|over to len" $=$ "words|over len" ]
     ]
 
 allEqual :: (Eq a) => [a] -> Bool
@@ -296,6 +305,7 @@ inputNums :: String -> [Scientific]
 inputNums str = mapMaybe readMaybe $ words str
 
 average :: [Scientific] -> Scientific
+average [] = 0
 average ns = sum ns `safeDiv` fromIntegral (length ns)
 
 {-# NOINLINE input #-}
