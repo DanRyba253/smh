@@ -238,7 +238,7 @@ parseCompOp = choice
 parseIfExprShort :: Parser IfExpr
 parseIfExprShort = do
     q <- fromMaybe QAll <$> optional parseQuantor
-    e <- parseEvaluatable
+    e <- EFocuser <$> parseFocuser
     return $ IfSingle $ Comparison (q, e) OpEq (QAny, EText "1")
 
 parseFocusRegex :: Parser Focuser
