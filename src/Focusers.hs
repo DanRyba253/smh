@@ -3,6 +3,7 @@
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes        #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Focusers where
 
@@ -283,9 +284,9 @@ focusAverage n = FTrav $ lens (getAverage n) const
 
 getAverage :: Scientific -> Focus -> Focus
 getAverage n focus = case focus of
-    FList _ -> FText $ showScientific $ (average n) $
+    FList _ -> FText $ showScientific $ average n $
         mapMaybe readMaybeScientific $ focus ^.. biplate
-    FText s -> FText $ showScientific $ (average n) $
+    FText s -> FText $ showScientific $ average n $
         mapMaybe (readMaybeScientific . T.singleton) $ T.unpack s
 
 average :: Scientific -> [Scientific] -> Scientific
@@ -401,26 +402,18 @@ focusRegex :: Text -> Focuser
 focusRegex regex = FTrav $ \f focus -> case focus of
     FText s ->
         let matchIdxs = getAllMatches (s =~ regex)
-            matches = fromIndexes s matchIdxs
+            (nonMatches, matches) = fromIndexes 0 s matchIdxs
             newMatches = map toTextUnsafe <$> traverse (f . FText) matches
-        in  FText . updateText (T.length s) s matchIdxs <$> newMatches
+        in  FText . T.concat . interleave nonMatches <$> newMatches
     _ -> pure focus
   where
-    fromIndexes :: Text -> [(Int, Int)] -> [Text]
-    fromIndexes _ []            = []
-    fromIndexes s ((i, j) : is) = T.take j (T.drop i s) : fromIndexes s is
+    fromIndexes :: Int -> Text -> [(Int, Int)] -> ([Text], [Text])
+    fromIndexes _ str [] = ([str], [])
+    fromIndexes offset str ((i, j) : is) =
+        let (nonMatch, T.splitAt j -> (match, str')) = T.splitAt (i - offset) str
+            (nonMatches, matches) = fromIndexes (offset + i + j) str' is
+        in  (nonMatch : nonMatches, match : matches)
 
-    updateText :: Int -> Text -> [(Int, Int)] -> [Text] -> Text
-    updateText sLen s is ts = T.unfoldrN sLen builder (0, is, ts)
-      where
-        builder :: (Int, [(Int, Int)], [Text]) -> Maybe (Char, (Int, [(Int, Int)], [Text]))
-        builder (n, [], []) = Just (T.index s n, (n + 1, [], []))
-        builder (n, (i, j) : is, t : ts)
-            | n >= sLen = Nothing
-            | n < i = Just (T.index s n, (n + 1, (i, j) : is, t : ts))
-            | n >= j + i = builder (n, is, ts)
-            | otherwise = Just (T.index t (n - i), (n + 1, (i, j) : is, t : ts))
-        builder _ = error "logic error in updateText. Please report this bug."
 
 focusFilter :: IfExpr -> Focuser
 focusFilter pred = focusCollect $ focusEach `composeFocusers` focusIf pred
