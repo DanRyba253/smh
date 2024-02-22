@@ -191,7 +191,7 @@ parseFocusPow = do
 parseFocusIf :: Parser Focuser
 parseFocusIf = do
     lexeme $ string "if" >> notFollowedBy (satisfy isAlphaNum)
-    ifExpr <- try parseIfExpr <|> parseIfExprShort
+    ifExpr <- parseIfExpr
     return $ focusIf ifExpr
 
 parseIfExpr :: Parser IfExpr
@@ -211,7 +211,7 @@ parseAndBlock = label "one or more blocks separated by '&&'" $ do
         _      -> return $ IfAnd atoms
 
 parseAtom :: Parser IfExpr
-parseAtom = between (symbol "(") (symbol ")") parseIfExpr <|> parseComp
+parseAtom = between (symbol "(") (symbol ")") parseIfExpr <|> try parseComp <|> parseIfExprShort
 
 parseComp :: Parser IfExpr
 parseComp = do
