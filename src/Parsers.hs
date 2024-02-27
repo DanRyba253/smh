@@ -301,7 +301,7 @@ parseMapping = label "valid mapping" $ choice
     ]
 
 parseMappings :: Parser [Mapping]
-parseMappings = label "valid mapping stack" $ parseMapping `sepBy1` symbol ">"
+parseMappings = label "valid mapping stack" $ parseMapping `sepBy1` symbol ":"
 
 parseMappingMap :: Parser Mapping
 parseMappingMap = do

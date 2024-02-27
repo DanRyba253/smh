@@ -204,7 +204,7 @@ mappingTests :: TestTree
 mappingTests = testGroup "Mapping Tests"
     [ testGroup "reverse"
         [ "id|over reverse" $= reverse input
-        , "id|over reverse>reverse" $= input
+        , "id|over reverse:reverse" $= input
         ]
     , testGroup "length"
         [ "id|over len" $= show (length input)
