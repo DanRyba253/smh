@@ -25,7 +25,7 @@ Refer to the [building instructions](https://danryba253.github.io/smh-docs/getti
 <h2>Examples of usage</h2>
 
 * `smh 'words.if length>3|get' < input_file` - display all words longer than 3 characters   
-* `smh 'words.[0]|over upper' < "hello world"` - capitalize all words  
+* `smh 'words.[0]|over upper' "hello world"` - capitalize all words  
 * `smh 'lines.if startsWith "*".<words>.[2]|get' < input_file` - display the third word in lines that start with an asterisk
 
 <h2>Contributing</h2>
