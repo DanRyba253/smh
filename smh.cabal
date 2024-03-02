@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               smh
-version:            0.1.1
+version:            0.1.2
 synopsis:           String manipulation tool written in haskell
 description:        String manipulation CLI tool based on optics
 category:           CLI Tool

@@ -7,3 +7,7 @@
 ## 0.1.1 -- 2024-02-28
 
 * Changed mapping separator from ">" to ":".
+
+## 0.1.2 -- 2024-03-02
+
+* added --version option
