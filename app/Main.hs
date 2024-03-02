@@ -11,18 +11,26 @@ import           Control.Monad        (when)
 import           Data.Maybe           (fromMaybe)
 import qualified Data.Text            as T
 import qualified Data.Text.IO         as TIO
+import           Data.Version         (showVersion)
 import           Parsers              (parseFocusers)
+import           Paths_smh            (version)
 import           System.Environment   (getArgs)
-import           System.Exit          (exitFailure)
+import           System.Exit          (exitFailure, exitSuccess)
 import           Text.Megaparsec      (errorBundlePretty, many, optional, parse)
 import           Text.Megaparsec.Char (char)
 
 main :: IO ()
 main = do
     args <- getArgs
+
+    when (args == ["--version"]) $ do
+        putStrLn ("smh " ++ showVersion version)
+        exitSuccess
+
     when (length args /= 1 && length args /= 2) $ do
         putStrLn "usage: smh <command> [input]"
         exitFailure
+
     (focusers, action) <- case parse parseData "input" (T.pack $ head args) of
         Left errors -> do
             putStrLn $ errorBundlePretty errors
