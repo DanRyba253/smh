@@ -18,6 +18,16 @@ smh aims to bring the power of optics into the command line. It provides a terse
 
 ---
 
+<h2>Intalling</h2>
+
+* <h3>Arch linux</h3>
+
+    `yay -S smh-bin`
+
+* <h3>Any distro</h3>
+
+    Download the latest [release](https://github.com/DanRyba253/smh/releases/latest)
+
 <h2>Building</h2>
 
 Refer to the [building instructions](https://danryba253.github.io/smh-docs/getting-started/#building) in the docs.
