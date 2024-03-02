@@ -11,3 +11,9 @@
 ## 0.1.2 -- 2024-03-02
 
 * added --version option
+
+## 0.1.3 -- 2024-03-03
+
+* made slicing more flexible (you can now change the length of the focused segment)
+
+* made regex user perl style instead of POSIX style

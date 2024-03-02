@@ -3,16 +3,17 @@
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes        #-}
-{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE ViewPatterns      #-}
 
 module Focusers where
 
 import           Common               (Comparison (..), Evaluatable (..),
                                        Focus (..), Focuser (..), IfExpr (..),
-                                       Mapping, Oper (..), Quantor (..), Range,
-                                       _toListUnsafe, composeFocusers,
-                                       getIndexes, makeFilteredText, mapText,
-                                       safeDiv, showScientific, toListUnsafe,
+                                       Mapping, Oper (..), Quantor (..),
+                                       Range (RangeSingle), _toListUnsafe,
+                                       composeFocusers, getIndexes,
+                                       makeFilteredText, mapText, safeDiv,
+                                       showScientific, toListUnsafe,
                                        toTextUnsafe, unsort)
 import           Control.Lens         (lens, partsOf, (^..))
 import           Data.Char            (isAlpha, isAlphaNum, isDigit, isLower,
@@ -27,8 +28,8 @@ import           Data.Scientific      (Scientific)
 import           Data.Text            (Text)
 import qualified Data.Text            as T
 import           Text.Read            (readMaybe)
-import           Text.Regex.TDFA
-import           Text.Regex.TDFA.Text
+import           Text.Regex.TDFA      (AllMatches (getAllMatches), (=~))
+import           Text.Regex.TDFA.Text ()
 
 focusId :: Focuser
 focusId = FTrav id
@@ -116,7 +117,7 @@ focusSlice ranges = FTrav $ \f focus -> case focus of
         is = getIndexes ranges str_length
         filtered_str = makeFilteredText str_length is str
         new_filtered_str = toTextUnsafe <$> (f . FText $ filtered_str)
-        new_str = updateText str_length str is <$> new_filtered_str
+        new_str = updateText str is <$> new_filtered_str
 
     FList lst -> FList <$> new_lst
       where
@@ -140,15 +141,21 @@ focusSlice ranges = FTrav $ \f focus -> case focus of
             | i == j = a' : aux old updates
             | otherwise = a : aux old ((j, a') : updates)
 
-    updateText :: Int -> Text -> [Int] -> Text -> Text
-    updateText oldLen old is new = T.unfoldrN oldLen builder (0, 0, is)
+    updateText :: Text -> [Int] -> Text -> Text
+    updateText old is new = T.unfoldrN (oldLen + newLen) builder (0, 0, is)
       where
+        newLen = T.length new
+        oldLen = T.length old
+
         builder :: (Int, Int, [Int]) -> Maybe (Char, (Int, Int, [Int]))
         builder (oldI, newI, [])
+            | newI < newLen = Just (T.index new newI, (oldI, newI + 1, []))
             | oldI < oldLen = Just (T.index old oldI, (oldI + 1, newI, []))
             | otherwise = Nothing
         builder (oldI, newI, i : is)
-            | oldI == i = Just (T.index new newI, (oldI + 1, newI + 1, is))
+            | oldI == i = if newI < newLen
+                then Just (T.index new newI, (oldI + 1, newI + 1, is))
+                else builder (oldI + 1, newI + 1, is)
             | otherwise = Just (T.index old oldI, (oldI + 1, newI, i : is))
 
 focusSortedBy :: Focuser -> Focuser
