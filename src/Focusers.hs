@@ -28,8 +28,8 @@ import           Data.Scientific      (Scientific)
 import           Data.Text            (Text)
 import qualified Data.Text            as T
 import           Text.Read            (readMaybe)
-import           Text.Regex.TDFA      (AllMatches (getAllMatches), (=~))
-import           Text.Regex.TDFA.Text ()
+import           Text.Regex.PCRE      (AllMatches (getAllMatches), (=~))
+import           Text.Regex.PCRE.Text ()
 
 focusId :: Focuser
 focusId = FTrav id

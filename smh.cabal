@@ -44,7 +44,7 @@ library lib
                       text >= 2.0.2 && < 2.1,
                       array >= 0.5.4 && < 0.6,
                       extra >= 1.7.14 && < 1.8,
-                      regex-tdfa >= 1.3.2 && < 1.4,
+                      regex-pcre-builtin,
                       loop >= 0.3.0 && < 0.4
     hs-source-dirs:   src
     default-language: Haskell2010
