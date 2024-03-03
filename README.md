@@ -28,7 +28,7 @@ smh aims to bring the power of optics into the command line. It provides a terse
 
     `cabal install smh`
 
-* <h3>Any distro</h3>
+* <h3>Any x86_64 linux</h3>
     
     Download the latest [release](https://github.com/DanRyba253/smh/releases/latest)
 
