@@ -24,8 +24,12 @@ smh aims to bring the power of optics into the command line. It provides a terse
 
     `yay -S smh-bin`
 
-* <h3>Any distro</h3>
+* <h3>With cabal</h3>
 
+    `cabal install smh`
+
+* <h3>Any distro</h3>
+    
     Download the latest [release](https://github.com/DanRyba253/smh/releases/latest)
 
 <h2>Building</h2>
