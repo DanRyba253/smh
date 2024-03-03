@@ -47,7 +47,3 @@ Before contributing, visit the [Contributing](https://danryba253.github.io/smh-d
 * Haskell, for being an awesome language
 * lens library authors, for inspiring this whole ordeal
 * mkdocs team, for making an awesome static documentation site generator
-
-<h2>P.S.</h2>
-
-If you're an uploader on hackage and like this project, consider [endorsing](https://hackage.haskell.org/user/danirybe/endorse) me, so I can upload it there.
