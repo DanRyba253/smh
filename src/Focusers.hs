@@ -3,18 +3,18 @@
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes        #-}
-{-# LANGUAGE ViewPatterns      #-}
 
 module Focusers where
 
 import           Common               (Comparison (..), Evaluatable (..),
                                        Focus (..), Focuser (..), IfExpr (..),
-                                       Mapping, Oper (..), Quantor (..),
+                                       Mapping, Oper (..), Parser, Quantor (..),
                                        Range (RangeSingle), _toListUnsafe,
-                                       composeFocusers, getIndexes,
-                                       makeFilteredText, mapText, safeDiv,
-                                       showScientific, toListUnsafe,
-                                       toTextUnsafe, unsort)
+                                       composeFocusers, fromIndexes, getIndexes,
+                                       makeFilteredText, mapText,
+                                       readMaybeRational, showRational,
+                                       toListUnsafe, toTextUnsafe, unsort)
+import           Control.Applicative  ((<|>))
 import           Control.Lens         (lens, partsOf, (^..))
 import           Data.Char            (isAlpha, isAlphaNum, isDigit, isLower,
                                        isSpace, isUpper)
@@ -24,12 +24,13 @@ import           Data.Functor         ((<&>))
 import           Data.List            (sortBy, transpose)
 import           Data.Maybe           (mapMaybe)
 import           Data.Ord             (comparing)
-import           Data.Scientific      (Scientific)
 import           Data.Text            (Text)
 import qualified Data.Text            as T
+import           Text.Megaparsec      (parseMaybe)
 import           Text.Read            (readMaybe)
 import           Text.Regex.PCRE      (AllMatches (getAllMatches), (=~))
 import           Text.Regex.PCRE.Text ()
+import Data.Ratio (denominator)
 
 focusId :: Focuser
 focusId = FTrav id
@@ -271,37 +272,38 @@ focusSum = FTrav $ lens getSum const
 
 getSum :: Focus -> Focus
 getSum focus = case focus of
-    FList _ -> FText $ showScientific $ sum $
-        mapMaybe readMaybeScientific $ focus ^.. biplate
-    FText s -> FText $ showScientific $ sum $
-        mapMaybe (readMaybeScientific . T.singleton) $ T.unpack s
+    FList _ -> FText $ showRational $ sum $
+        mapMaybe readMaybeRational $ focus ^.. biplate
+    FText s -> FText $ showRational $ sum $
+        mapMaybe (readMaybeRational . T.singleton) $ T.unpack s
 
 focusProduct :: Focuser
 focusProduct = FTrav $ lens getProduct const
 
 getProduct :: Focus -> Focus
 getProduct focus = case focus of
-    FList _ -> FText $ showScientific $ product $
-        mapMaybe readMaybeScientific $ focus ^.. biplate
-    FText s -> FText $ showScientific $ product $
-        mapMaybe (readMaybeScientific . T.singleton) $ T.unpack s
+    FList _ -> FText $ showRational $ product $
+        mapMaybe readMaybeRational $ focus ^.. biplate
+    FText s -> FText $ showRational $ product $
+        mapMaybe (readMaybeRational . T.singleton) $ T.unpack s
 
-focusAverage :: Scientific -> Focuser
+focusAverage :: Rational -> Focuser
 focusAverage n = FTrav $ lens (getAverage n) const
 
-getAverage :: Scientific -> Focus -> Focus
+getAverage :: Rational -> Focus -> Focus
 getAverage n focus = case focus of
-    FList _ -> FText $ showScientific $ average n $
-        mapMaybe readMaybeScientific $ focus ^.. biplate
-    FText s -> FText $ showScientific $ average n $
-        mapMaybe (readMaybeScientific . T.singleton) $ T.unpack s
+    FList _ -> FText $ showRational $ average n $
+        mapMaybe readMaybeRational $ focus ^.. biplate
+    FText s -> FText $ showRational $ average n $
+        mapMaybe (readMaybeRational . T.singleton) $ T.unpack s
 
-average :: Scientific -> [Scientific] -> Scientific
+average :: Rational -> [Rational] -> Rational
 average n [] = n
 average _ xs = sum xs / fromIntegral (length xs)
 
-readMaybeScientific :: Text -> Maybe Scientific
-readMaybeScientific = readMaybe . T.unpack
+
+
+
 
 focusIf :: IfExpr -> Focuser
 focusIf ifexpr = FTrav $ \f focus -> if focus `passesIf` ifexpr
@@ -324,22 +326,22 @@ focusIf ifexpr = FTrav $ \f focus -> if focus `passesIf` ifexpr
             (QAny, QAll) -> any and results
             (QAny, QAny) -> any or results
 
-    evaluateEval :: Focus -> Evaluatable -> [Either Scientific Focus]
+    evaluateEval :: Focus -> Evaluatable -> [Either Rational Focus]
     evaluateEval focus eval = case eval of
         EText s               -> [Right $ FText s]
         ENumber n             -> [Left n]
         EFocuser (FTrav trav) -> Right <$> focus ^.. trav
 
-    applyOp :: Oper -> Either Scientific Focus -> Either Scientific Focus -> Bool
+    applyOp :: Oper -> Either Rational Focus -> Either Rational Focus -> Bool
     applyOp OpEq (Left n1) (Left n2) = n1 == n2
     applyOp OpEq (Right f1) (Right f2) = f1 == f2
-    applyOp OpEq (Left n1) (Right (FText s2)) = Just n1 == readMaybeScientific s2
-    applyOp OpEq (Right (FText s1)) (Left n2) = readMaybeScientific s1 == Just n2
+    applyOp OpEq (Left n1) (Right (FText s2)) = Just n1 == readMaybeRational s2
+    applyOp OpEq (Right (FText s1)) (Left n2) = readMaybeRational s1 == Just n2
     applyOp OpNe (Left n1) (Left n2) = n1 /= n2
-    applyOp OpNe (Left n1) (Right (FText s2)) = case readMaybeScientific s2 of
+    applyOp OpNe (Left n1) (Right (FText s2)) = case readMaybeRational s2 of
         Just n2 -> n1 /= n2
         Nothing -> False
-    applyOp OpNe (Right (FText s1)) (Left n2) = case readMaybeScientific s1 of
+    applyOp OpNe (Right (FText s1)) (Left n2) = case readMaybeRational s1 of
         Just n1 -> n1 /= n2
         Nothing -> False
     applyOp OpNe (Right f1) (Right f2) = f1 /= f2
@@ -352,18 +354,18 @@ focusIf ifexpr = FTrav $ \f focus -> if focus `passesIf` ifexpr
       where
         applyOpOrd
             :: (forall a. Ord a => a -> a -> Bool)
-            -> Either Scientific Focus
-            -> Either Scientific Focus
+            -> Either Rational Focus
+            -> Either Rational Focus
             -> Bool
         applyOpOrd f (Left n1) (Left n2) = f n1 n2
-        applyOpOrd f (Left n1) (Right (FText s2)) = case readMaybeScientific s2 of
+        applyOpOrd f (Left n1) (Right (FText s2)) = case readMaybeRational s2 of
             Just n2 -> f n1 n2
             Nothing -> False
-        applyOpOrd f (Right (FText s1)) (Left n2) = case readMaybeScientific s1 of
+        applyOpOrd f (Right (FText s1)) (Left n2) = case readMaybeRational s1 of
             Just n1 -> f n1 n2
             Nothing -> False
         applyOpOrd f (Right (FText s1)) (Right (FText s2)) =
-            case (readMaybeScientific s1, readMaybeScientific s2) of
+            case (readMaybeRational s1, readMaybeRational s2) of
                 (Just n1, Just n2) -> f n1 n2
                 _                  -> f s1 s2
         applyOpOrd _ _ _ = False
@@ -413,14 +415,6 @@ focusRegex regex = FTrav $ \f focus -> case focus of
             newMatches = map toTextUnsafe <$> traverse (f . FText) matches
         in  FText . T.concat . interleave nonMatches <$> newMatches
     _ -> pure focus
-  where
-    fromIndexes :: Int -> Text -> [(Int, Int)] -> ([Text], [Text])
-    fromIndexes _ str [] = ([str], [])
-    fromIndexes offset str ((i, j) : is) =
-        let (nonMatch, T.splitAt j -> (match, str')) = T.splitAt (i - offset) str
-            (nonMatches, matches) = fromIndexes (offset + i + j) str' is
-        in  (nonMatch : nonMatches, match : matches)
-
 
 focusFilter :: IfExpr -> Focuser
 focusFilter pred = focusCollect $ focusEach `composeFocusers` focusIf pred
@@ -451,5 +445,6 @@ focusEndsWith text = FTrav $ lens ends const
 
 focusLength :: Focuser
 focusLength = FTrav $ \f focus -> case focus of
-    FText s          -> f . FText . T.pack . show . T.length $ s
+    fs@(FText s)     -> fs <$ f (FText . T.pack . show . T.length $ s)
     flst@(FList lst) -> flst <$ f (FText . T.pack . show . length $ lst)
+

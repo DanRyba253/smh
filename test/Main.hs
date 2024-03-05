@@ -1,14 +1,13 @@
 {-# LANGUAGE GADTs #-}
 module Main where
 
-import           Common           (safeDiv, showScientific)
+import           Common           (readMaybeRational, showRational)
 import           Data.Char        (isAlpha, isAlphaNum, isDigit, isLower,
                                    isSpace, isUpper, toLower, toUpper)
 import           Data.Function    (on)
 import           Data.List        (groupBy, transpose)
 import           Data.List.Extra  (dropEnd, groupBy, sort, takeEnd, transpose)
-import           Data.Maybe       (fromMaybe, mapMaybe)
-import           Data.Scientific  (Scientific)
+import           Data.Maybe       (fromMaybe, mapMaybe, fromJust)
 import qualified Data.Text        as T
 import           Focusers         (interleave, myWords)
 import           System.IO.Unsafe (unsafePerformIO)
@@ -16,7 +15,6 @@ import           System.Process   (readProcess)
 import           Test.Tasty       (TestTree, defaultMain, testGroup)
 import           Test.Tasty.HUnit (testCase, (@?=))
 import           Text.Read        (readMaybe)
-import Focusers (readMaybeScientific)
 
 main :: IO ()
 main = defaultMain $ testGroup "All" [focuserTests, mappingTests]
@@ -74,7 +72,7 @@ focuserTests = testGroup "Focuser Tests"
         ]
     , testGroup "sortedBy"
         [ "<words.if isDigit>.sortedBy id.each|get-tree" $=
-            show (map showScientific $ sort $ map (read :: String -> Scientific) $ filter (all isDigit) $ words input)
+            show (map showRational $ sort $ map (fromJust . readMaybeRational . T.pack) $ filter (all isDigit) $ words input)
         , "<words.if isAlpha>.sortedBy id.each|over id" $=$ "id|over id"
         ]
     , testGroup "sorted"
@@ -107,40 +105,40 @@ focuserTests = testGroup "Focuser Tests"
         , "(words.len)|get-tree" $=$ "words.len|get-tree"
         ]
     , testGroup "sum"
-        [ "<words>.sum|get-tree" $= show [showScientific (sum $ inputNums input)]
+        [ "<words>.sum|get-tree" $= show [showRational (sum $ inputNums input)]
         , "words.sum|get-tree" $=
-            show (map (showScientific . sum . mapMaybe (readMaybeScientific . T.pack . (:[]))) $ words input)
+            show (map (showRational . sum . mapMaybe (readMaybeRational . T.pack . (:[]))) $ words input)
         ]
     , testGroup "product"
-        [ "<words>.product|get-tree" $= show [showScientific (product $ inputNums input)]
+        [ "<words>.product|get-tree" $= show [showRational (product $ inputNums input)]
         , "words.product|get-tree" $=
-            show (map (showScientific . product . mapMaybe (readMaybeScientific . T.pack . (:[]))) $ words input)
+            show (map (showRational . product . mapMaybe (readMaybeRational . T.pack . (:[]))) $ words input)
         ]
     , testGroup "average"
-        [ "<words>.average|get-tree" $= show [showScientific (average $ inputNums input)]
+        [ "<words>.average|get-tree" $= show [showRational (average $ inputNums input)]
         , "words.average|get-tree" $=
-            show (map (showScientific . average . mapMaybe (readMaybeScientific . T.pack . (:[]))) $ words input)
+            show (map (showRational . average . mapMaybe (readMaybeRational . T.pack . (:[]))) $ words input)
         ]
     , testGroup "add"
-        [ "<words.add 1>.sum|get-tree" $= show [showScientific (sum $ map (+1) $ inputNums input)]
+        [ "<words.add 1>.sum|get-tree" $= show [showRational (sum $ map (+1) $ inputNums input)]
         ]
     , testGroup "sub"
-        [ "<words.sub 1>.sum|get-tree" $= show [showScientific (sum $ map (subtract 1) $ inputNums input)]
+        [ "<words.sub 1>.sum|get-tree" $= show [showRational (sum $ map (subtract 1) $ inputNums input)]
         ]
     , testGroup "mult"
-        [ "<words.mult 2>.sum|get-tree" $= show [showScientific (sum $ map (*2) $ inputNums input)]
+        [ "<words.mult 2>.sum|get-tree" $= show [showRational (sum $ map (*2) $ inputNums input)]
         ]
     , testGroup "div"
-        [ "<words.div 2>.sum|get-tree" $= show [showScientific (sum $ map (`safeDiv` 2) $ inputNums input)]
+        [ "<words.div 2>.sum|get-tree" $= show [showRational (sum $ map (/ 2) $ inputNums input)]
         ]
     , testGroup "pow"
-        [ "<words.pow 2>.sum|get-tree" $= show [showScientific (sum $ map (^^ 2) $ inputNums input)]
+        [ "<words.pow 2>.sum|get-tree" $= show [showRational (sum $ map (^^ 2) $ inputNums input)]
         ]
     , testGroup "abs"
-        [ "<words.abs>.sum|get-tree" $= show [showScientific (sum $ map abs $ inputNums input)]
+        [ "<words.abs>.sum|get-tree" $= show [showRational (sum $ map abs $ inputNums input)]
         ]
     , testGroup "sign"
-        [ "<words.sign>.sum|get-tree" $= show [showScientific (sum $ map signum $ inputNums input)]
+        [ "<words.sign>.sum|get-tree" $= show [showRational (sum $ map signum $ inputNums input)]
         ]
     , testGroup "if"
         [ "words.if 1=1|get-tree" $= show (words input)
@@ -232,7 +230,7 @@ mappingTests = testGroup "Mapping Tests"
     , testGroup "add/sub/div/pow/abs/sign"
         [ "id|over add 1" $= mapNums (+ 1) input
         , "id|over sub 1" $= mapNums (subtract 1) input
-        , "id|over div 2" $= mapNums (`safeDiv` 2) input
+        , "id|over div 2" $= mapNums (/ 2) input
         , "id|over pow 2" $= mapNums (^^ 2) input
         , "id|over abs" $= mapNums abs input
         , "id|over sign" $= mapNums signum input
@@ -275,23 +273,23 @@ mappingTests = testGroup "Mapping Tests"
     ]
 
 allEqual :: (Eq a) => [a] -> Bool
-allEqual [] = True
+allEqual []     = True
 allEqual (x:xs) = all (== x) xs
 
 anyEqual :: (Eq a) => [a] -> Bool
-anyEqual [] = False
+anyEqual []     = False
 anyEqual (x:xs) = x `elem` xs || anyEqual xs
 
-mapNums :: (Scientific -> Scientific) -> String -> String
+mapNums :: (Rational -> Rational) -> String -> String
 mapNums f str =
     let (ws, words) = myWords $ T.pack str
         new_words = map (mapNum f . T.unpack) words
     in  T.unpack $ T.concat $ interleave ws words
   where
-    mapNum :: (Scientific -> Scientific) -> String -> String
+    mapNum :: (Rational -> Rational) -> String -> String
     mapNum f str = case readMaybe str of
         Nothing -> str
-        Just n  -> T.unpack $ showScientific $ f n
+        Just n  -> T.unpack $ showRational $ f n
 
 getWS :: String -> [String]
 getWS str =
@@ -301,12 +299,12 @@ getWS str =
 getCols :: String -> [[String]]
 getCols = transpose . map words . lines
 
-inputNums :: String -> [Scientific]
-inputNums str = mapMaybe readMaybe $ words str
+inputNums :: String -> [Rational]
+inputNums str = mapMaybe (readMaybeRational . T.pack) $ words str
 
-average :: [Scientific] -> Scientific
+average :: [Rational] -> Rational
 average [] = 0
-average ns = sum ns `safeDiv` fromIntegral (length ns)
+average ns = sum ns / fromIntegral (length ns)
 
 {-# NOINLINE input #-}
 input :: String

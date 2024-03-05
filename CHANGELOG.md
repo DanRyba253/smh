@@ -16,4 +16,10 @@
 
 * made slicing more flexible (you can now change the length of the focused segment)
 
-* made regex user perl style instead of POSIX style
+* made regex use perl style instead of POSIX style
+
+## 0.2.0 -- 2024-03-05
+
+* added "el" and "kv" focusers
+
+* switched from internally using scientific to Rational 

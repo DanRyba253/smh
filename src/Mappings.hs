@@ -5,13 +5,12 @@ module Mappings where
 
 import           Common          (Evaluatable (..), Focus (FList, FText),
                                   Focuser (..), Mapping, Range, getIndexes,
-                                  makeFilteredText, mapText, safeDiv,
-                                  showScientific, toTextUnsafe)
+                                  makeFilteredText, mapText,
+                                  showRational, toTextUnsafe, readMaybeRational)
 import           Control.Lens    ((^..))
 import           Data.Char       (toLower, toUpper)
 import           Data.Function   (on)
 import           Data.List       (sortBy)
-import           Data.Scientific (Scientific)
 import           Data.Text       (Text)
 import qualified Data.Text       as T
 import           Text.Read       (readMaybe)
@@ -31,7 +30,7 @@ mappingMap mapping (FText str) = FText $ T.concat $ mapText
 
 mappingAppend :: Evaluatable -> Mapping
 mappingAppend (EText str') (FText str) = FText $ T.append str str'
-mappingAppend (ENumber n) (FText str) = FText $ T.append str (showScientific n)
+mappingAppend (ENumber n) (FText str) = FText $ T.append str (showRational n)
 mappingAppend (EFocuser (FTrav trav)) fstr@(FText str) = case fstr ^.. trav of
     [FText s] -> FText $ T.append str s
     _         -> fstr
@@ -39,7 +38,7 @@ mappingAppend _ flist            = flist
 
 mappingPrepend :: Evaluatable -> Mapping
 mappingPrepend (EText str') (FText str) = FText $ T.append str' str
-mappingPrepend (ENumber n) (FText str) = FText $ T.append (showScientific n) str
+mappingPrepend (ENumber n) (FText str) = FText $ T.append (showRational n) str
 mappingPrepend (EFocuser (FTrav trav)) fstr@(FText str) = case fstr ^.. trav of
     [FText s] -> FText $ T.append s str
     _         -> fstr
@@ -53,23 +52,23 @@ mappingLower :: Mapping
 mappingLower (FText str) = FText $ T.toLower str
 mappingLower flist       = flist
 
-mappingMath :: (Scientific -> Scientific) -> Mapping
-mappingMath f (FText str) = case readMaybe $ T.unpack str of
+mappingMath :: (Rational -> Rational) -> Mapping
+mappingMath f (FText str) = case readMaybeRational str of
     Nothing -> FText str
-    Just n  -> FText $ showScientific $ f n
+    Just n  -> FText $ showRational $ f n
 mappingMath _ flist         = flist
 
-mappingAdd :: Scientific -> Mapping
+mappingAdd :: Rational -> Mapping
 mappingAdd = mappingMath . (+)
 
-mappingSub :: Scientific -> Mapping
+mappingSub :: Rational -> Mapping
 mappingSub = mappingMath . flip (-)
 
-mappingMult :: Scientific -> Mapping
+mappingMult :: Rational -> Mapping
 mappingMult = mappingMath . (*)
 
-mappingDiv :: Scientific -> Mapping
-mappingDiv = mappingMath . flip safeDiv
+mappingDiv :: Rational -> Mapping
+mappingDiv = mappingMath . flip (/)
 
 mappingPow :: Int -> Mapping
 mappingPow = mappingMath . flip (^^)

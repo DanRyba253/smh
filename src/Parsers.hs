@@ -7,7 +7,7 @@ import           Common               (Comparison (..), Evaluatable (..),
                                        Oper (..), Parser, Quantor (..),
                                        Range (..), composeFocusers, focusTo,
                                        foldFocusers, foldMappings, integer,
-                                       lexeme, scient, symbol, mappingTo)
+                                       lexeme, rational, symbol, mappingTo)
 import           Data.Char            (isAlphaNum)
 import           Data.Functor         (($>))
 import           Data.Maybe           (fromMaybe)
@@ -166,22 +166,22 @@ parseFocusMaxLexBy = do
 parseFocusAdd :: Parser Focuser
 parseFocusAdd = do
     symbol "add "
-    focusTo . mappingAdd <$> scient
+    focusTo . mappingAdd <$> rational
 
 parseFocusSub :: Parser Focuser
 parseFocusSub = do
     symbol "sub "
-    focusTo . mappingSub <$> scient
+    focusTo . mappingSub <$> rational
 
 parseFocusMult :: Parser Focuser
 parseFocusMult = do
     symbol "mult "
-    focusTo . mappingMult <$> scient
+    focusTo . mappingMult <$> rational
 
 parseFocusDiv :: Parser Focuser
 parseFocusDiv = do
     symbol "div "
-    focusTo . mappingDiv <$> scient
+    focusTo . mappingDiv <$> rational
 
 parseFocusPow :: Parser Focuser
 parseFocusPow = do
@@ -191,8 +191,7 @@ parseFocusPow = do
 parseFocusIf :: Parser Focuser
 parseFocusIf = do
     lexeme $ string "if" >> notFollowedBy (satisfy isAlphaNum)
-    ifExpr <- parseIfExpr
-    return $ focusIf ifExpr
+    focusIf <$> parseIfExpr
 
 parseIfExpr :: Parser IfExpr
 parseIfExpr = label "one or more blocks separated by '||'" $ do
@@ -269,7 +268,7 @@ parseFocusEndsWith = do
 parseFocusAverage :: Parser Focuser
 parseFocusAverage = do
     symbol "average"
-    def <- fromMaybe 0 <$> optional scient
+    def <- fromMaybe 0 <$> optional rational
     return $ focusAverage def
 
 -- mapping parsers
@@ -311,13 +310,13 @@ parseMappingMap = do
 parseEvaluatable :: Parser Evaluatable
 parseEvaluatable =
     EText <$> stringLiteral <|>
-    ENumber <$> scient <|>
+    ENumber <$> rational <|>
     EFocuser <$> parseFocuser
 
 parseEvaluatableLong :: Parser Evaluatable
 parseEvaluatableLong =
     EText <$> stringLiteral <|>
-    ENumber <$> scient <|>
+    ENumber <$> rational <|>
     EFocuser . foldFocusers <$> parseFocusers
 
 stringLiteral :: Parser Text
@@ -344,22 +343,22 @@ parseMappingPrepend = do
 parseMappingAdd :: Parser Mapping
 parseMappingAdd = do
     symbol "add "
-    mappingAdd <$> scient
+    mappingAdd <$> rational
 
 parseMappingSub :: Parser Mapping
 parseMappingSub = do
     symbol "sub "
-    mappingSub <$> scient
+    mappingSub <$> rational
 
 parseMappingMult :: Parser Mapping
 parseMappingMult = do
     symbol "mult "
-    mappingMult <$> scient
+    mappingMult <$> rational
 
 parseMappingDiv :: Parser Mapping
 parseMappingDiv = do
     symbol "div "
-    mappingDiv <$> scient
+    mappingDiv <$> rational
 
 parseMappingPow :: Parser Mapping
 parseMappingPow = do

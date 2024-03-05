@@ -1,9 +1,11 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE RankNTypes         #-}
+{-# LANGUAGE ViewPatterns       #-}
+{-# LANGUAGE KindSignatures #-}
 
 module Common(module Common) where
 
-import           Control.Applicative        (empty)
+import           Control.Applicative        (empty, (<|>))
 import           Control.Lens               (Lens', Traversal', lens, (^..))
 import           Control.Loop               (numLoop)
 import           Control.Monad              (forM_)
@@ -13,8 +15,7 @@ import qualified Data.Array.ST              as A
 import           Data.Data                  (Data)
 import           Data.List                  (nub, sort)
 import           Data.List.Extra            (nubOrd)
-import           Data.Scientific            (Scientific, floatingOrInteger,
-                                             fromFloatDigits, toRealFloat)
+import           Data.Ratio                 (denominator, numerator)
 import           Data.STRef                 ()
 import           Data.Text                  (Text)
 import qualified Data.Text                  as T
@@ -22,6 +23,7 @@ import           Data.Void                  (Void)
 import           Text.Megaparsec            (Parsec, label)
 import           Text.Megaparsec.Char       (space1)
 import qualified Text.Megaparsec.Char.Lexer as L
+import           Text.Read                  (readMaybe)
 
 data Focus
     = FText !Text
@@ -65,13 +67,10 @@ foldMappings = foldr (flip (.)) id
 
 type Parser = Parsec Void Text
 
-showScientific :: Scientific -> Text
-showScientific n = case floatingOrInteger n :: Either Double Int of
-    Left d  -> T.pack $ show d
-    Right i -> T.pack $ show i
-
-safeDiv :: Scientific -> Scientific -> Scientific
-safeDiv a b = fromFloatDigits (toRealFloat a / toRealFloat b)
+showRational :: Rational -> Text
+showRational n = if denominator n == 1
+    then T.pack $ show (numerator n)
+    else T.pack $ show (fromInteger (numerator n) / fromInteger (denominator n))
 
 data Range
     = RangeSingle !Int
@@ -99,7 +98,7 @@ getIndexes ranges len = nubOrd . sort . concatMap (getIndexes' . fixRange) $ ran
 
 data Evaluatable
     = EText !Text
-    | ENumber !Scientific
+    | ENumber !Rational
     | EFocuser { evalFocuserUnsafe :: !Focuser }
 
 data IfExpr
@@ -135,8 +134,8 @@ lexeme = L.lexeme ws
 integer :: Parser Int
 integer = label "integer" $ lexeme $ L.signed ws L.decimal
 
-scient :: Parser Scientific
-scient = label "number" $ lexeme $ L.signed ws L.scientific
+rational :: Parser Rational
+rational = toRational <$> label "number" (lexeme $ L.signed ws L.scientific)
 
 mapText :: (Char -> a) -> Text -> [a]
 mapText f = T.foldr (\c cs -> f c : cs) []
@@ -164,3 +163,19 @@ mappingTo :: Focuser -> Mapping
 mappingTo (FTrav trav) focus = case (focus, focus ^.. trav) of
     (FText _, [FText str]) -> FText str
     _                      -> focus
+
+fromIndexes :: Int -> Text -> [(Int, Int)] -> ([Text], [Text])
+fromIndexes _ str [] = ([str], [])
+fromIndexes offset str ((i, j) : is) =
+    let (nonMatch, T.splitAt j -> (match, str')) = T.splitAt (i - offset) str
+        (nonMatches, matches) = fromIndexes (offset + i + j) str' is
+    in  (nonMatch : nonMatches, match : matches)
+
+readMaybeRational :: Text -> Maybe Rational
+readMaybeRational s = (toRational <$> readMaybeInteger s) <|> (toRational <$> readMaybeDouble s)
+
+readMaybeInteger :: Text -> Maybe Integer
+readMaybeInteger = readMaybe . T.unpack
+
+readMaybeDouble :: Text -> Maybe Double
+readMaybeDouble = readMaybe . T.unpack
