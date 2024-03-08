@@ -168,7 +168,7 @@ fromIndexes :: Int -> Text -> [(Int, Int)] -> ([Text], [Text])
 fromIndexes _ str [] = ([str], [])
 fromIndexes offset str ((i, j) : is) =
     let (nonMatch, T.splitAt j -> (match, str')) = T.splitAt (i - offset) str
-        (nonMatches, matches) = fromIndexes (offset + i + j) str' is
+        (nonMatches, matches) = fromIndexes (i + j) str' is
     in  (nonMatch : nonMatches, match : matches)
 
 readMaybeRational :: Text -> Maybe Rational

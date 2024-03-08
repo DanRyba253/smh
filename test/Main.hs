@@ -196,6 +196,32 @@ focuserTests = testGroup "Focuser Tests"
         ]
     , testGroup "filter"
         [ "<words>.filter len<3.each|get-tree" $=$ "words.if len<3|get-tree" ]
+    , testGroup "regex"
+        [ "regex \"([a-z]|[A-Z]|[0-9]|_)+\"|get" $=$ "words|get"
+        , "regex \"([a-z]|[A-Z]|[0-9]|_)+\"|over id" $=$ "id|over id"
+        ]
+    , testGroup "json"
+        [ testGroup "kv"
+            [ "kv.[0]|get" $$= "\"quiz\"\n"
+            , "kv.[1].kv.[0]|get" $$= "\"sport\"\n\"maths\"\n"
+            ]
+        , testGroup "key"
+            [ "key|get" $$=$ "kv.key|get"
+            , "kv.key|get" $$=$ "kv.[0].{1:-1}|get"
+            ]
+        , testGroup "val"
+            [ "val|get" $$=$ "kv.val|get"
+            , "kv.val|get" $$=$ "kv.[1]|get"
+            ]
+        , testGroup "atKey"
+            [ "atKey \"quiz\"|get" $$=$ "kv.if key=\"quiz\".val|get"
+            ]
+        , testGroup "atIdx"
+            [ "atKey \"quiz\".atKey \"sport\".val.atKey \"options\".atIdx 3|get" $$= "\"Huston Rocket\"\n"
+            ]
+        , testGroup "el"
+            [ "atKey \"quiz\".atKey \"sport\".val.atKey \"options\".<el>.[3]|get" $$= "\"Huston Rocket\"\n" ]
+        ]
     ]
 
 mappingTests :: TestTree
@@ -310,6 +336,10 @@ average ns = sum ns / fromIntegral (length ns)
 input :: String
 input = unsafePerformIO $ readFile "test/input.txt"
 
+{-# NOINLINE json #-}
+json :: String
+json = unsafePerformIO $ readFile "test/input.json"
+
 infixl 1 $=
 ($=) :: String -> String -> TestTree
 ($=) command desiredOutput = testCase command $ do
@@ -321,5 +351,19 @@ infixl 1 $=$
 ($=$) cmd1 cmd2 = testCase (cmd1 ++ " == " ++ cmd2) $ do
     out1 <- readProcess "./smh" [cmd1] input
     out2 <- readProcess "./smh" [cmd2] input
+    out1 @?= out2
+
+-- This is stupid, but whatever
+infixl 1 $$=
+($$=) :: String -> String -> TestTree
+($$=) command desiredOutput = testCase command $ do
+    output <- readProcess "./smh" [command] json
+    output @?= desiredOutput
+
+infixl 1 $$=$
+($$=$) :: String -> String -> TestTree
+($$=$) cmd1 cmd2 = testCase (cmd1 ++ " == " ++ cmd2) $ do
+    out1 <- readProcess "./smh" [cmd1] json
+    out2 <- readProcess "./smh" [cmd2] json
     out1 @?= out2
 

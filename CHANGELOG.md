@@ -18,8 +18,12 @@
 
 * made regex use perl style instead of POSIX style
 
-## 0.2.0 -- 2024-03-05
+## 0.2.0 -- 2024-03-08
 
-* added "el" and "kv" focusers
+* added "el", "kv", "key", "val", "atKey", "atIdx" focusers
 
-* switched from internally using scientific to Rational 
+* switched from internally using scientific to Rational
+
+* fixed "regex" (it was very broken, lol)
+
+* added escaping support to string literals (only \")

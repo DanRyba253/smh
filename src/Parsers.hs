@@ -7,23 +7,25 @@ import           Common               (Comparison (..), Evaluatable (..),
                                        Oper (..), Parser, Quantor (..),
                                        Range (..), composeFocusers, focusTo,
                                        foldFocusers, foldMappings, integer,
-                                       lexeme, rational, symbol, mappingTo)
+                                       lexeme, mappingTo, rational, symbol)
 import           Data.Char            (isAlphaNum)
 import           Data.Functor         (($>))
 import           Data.Maybe           (fromMaybe)
 import           Data.Text            (Text)
 import qualified Data.Text            as T
-import           Focusers             (focusAverage, focusCollect, focusCols,
-                                       focusContains, focusEach, focusEndsWith,
-                                       focusFilter, focusId, focusIf,
-                                       focusIndex, focusIsAlpha,
+import           Focusers             (escaping, focusAtIdx, focusAtKey,
+                                       focusAverage, focusCollect, focusCols,
+                                       focusContains, focusEach, focusEl,
+                                       focusEndsWith, focusFilter, focusId,
+                                       focusIf, focusIndex, focusIsAlpha,
                                        focusIsAlphaNum, focusIsDigit,
                                        focusIsLower, focusIsSpace, focusIsUpper,
-                                       focusLength, focusLines, focusMaxBy,
-                                       focusMaxLexBy, focusMinBy, focusMinLexBy,
-                                       focusProduct, focusRegex, focusSlice,
-                                       focusSortedBy, focusSortedLexBy,
-                                       focusSpace, focusStartsWith, focusSum,
+                                       focusKV, focusKey, focusLength,
+                                       focusLines, focusMaxBy, focusMaxLexBy,
+                                       focusMinBy, focusMinLexBy, focusProduct,
+                                       focusRegex, focusSlice, focusSortedBy,
+                                       focusSortedLexBy, focusSpace,
+                                       focusStartsWith, focusSum, focusVal,
                                        focusWords)
 import           Mappings             (mappingAbs, mappingAdd, mappingAppend,
                                        mappingDiv, mappingId, mappingLength,
@@ -33,10 +35,11 @@ import           Mappings             (mappingAbs, mappingAdd, mappingAppend,
                                        mappingSlice, mappingSortBy,
                                        mappingSortLexBy, mappingSub,
                                        mappingUpper)
-import           Text.Megaparsec      (MonadParsec (try), anySingle, between,
-                                       choice, empty, label, many, noneOf,
-                                       notFollowedBy, optional, satisfy, sepBy,
-                                       sepBy1, takeWhile1P, (<|>))
+import           Text.Megaparsec      (MonadParsec (try), anySingle,
+                                       anySingleBut, between, choice, empty,
+                                       label, many, noneOf, notFollowedBy,
+                                       optional, satisfy, sepBy, sepBy1,
+                                       takeWhile1P, (<|>))
 import           Text.Megaparsec.Char (char, string)
 
 -- Focuser parsers
@@ -89,6 +92,12 @@ parseFocuser = label "valid focuser" $ choice
     , parseFocusContains
     , parseFocusStartsWith
     , parseFocusEndsWith
+    , symbol "el" $> focusEl
+    , symbol "kv" $> focusKV
+    , symbol "key" $> focusKey
+    , symbol "val" $> focusVal
+    , parseFocusAtKey
+    , parseFocusAtIdx
     ]
 
 parseFocusers :: Parser [Focuser]
@@ -115,9 +124,9 @@ rangeSingle = RangeSingle <$> integer
 
 rangeRange :: Parser Range
 rangeRange = label "range" $ do
-    mstart <- lexeme $ optional integer
+    mstart <- optional integer
     symbol ":"
-    mend <- lexeme $ optional integer
+    mend <- optional integer
     return $ RangeRange mstart mend
 
 parseFocusSortedBy :: Parser Focuser
@@ -271,6 +280,16 @@ parseFocusAverage = do
     def <- fromMaybe 0 <$> optional rational
     return $ focusAverage def
 
+parseFocusAtKey :: Parser Focuser
+parseFocusAtKey = do
+    symbol "atKey"
+    focusAtKey <$> stringLiteral
+
+parseFocusAtIdx :: Parser Focuser
+parseFocusAtIdx = do
+    symbol "atIdx "
+    focusAtIdx <$> integer
+
 -- mapping parsers
 
 parseMapping :: Parser Mapping
@@ -320,15 +339,11 @@ parseEvaluatableLong =
     EFocuser . foldFocusers <$> parseFocusers
 
 stringLiteral :: Parser Text
-stringLiteral = label "string literal" $ lexeme $ do
-    char '"'
-    inner <- T.concat <$> many (choice
-        [ takeWhile1P Nothing (\c -> c /= '/' && c /= '"')
-        , try (string "\\\"" $> "\"")
-        , string "\\"
+stringLiteral = T.pack <$> label "string literal" (do
+    between (char '"') (char '"') $ many $ choice
+        [ char '\\' >> anySingle
+        , anySingleBut '"'
         ])
-    char '"'
-    return inner
 
 parseMappingAppend :: Parser Mapping
 parseMappingAppend = do

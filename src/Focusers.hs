@@ -11,11 +11,12 @@ import           Common               (Comparison (..), Evaluatable (..),
                                        Mapping, Oper (..), Parser, Quantor (..),
                                        Range (RangeSingle), _toListUnsafe,
                                        composeFocusers, fromIndexes, getIndexes,
-                                       makeFilteredText, mapText,
-                                       readMaybeRational, showRational,
-                                       toListUnsafe, toTextUnsafe, unsort)
+                                       lexeme, makeFilteredText, mapText,
+                                       readMaybeRational, showRational, symbol,
+                                       toListUnsafe, toTextUnsafe, unsort, ws)
 import           Control.Applicative  ((<|>))
 import           Control.Lens         (lens, partsOf, (^..))
+import           Control.Monad        (void, when, zipWithM)
 import           Data.Char            (isAlpha, isAlphaNum, isDigit, isLower,
                                        isSpace, isUpper)
 import           Data.Data.Lens       (biplate)
@@ -24,13 +25,16 @@ import           Data.Functor         ((<&>))
 import           Data.List            (sortBy, transpose)
 import           Data.Maybe           (mapMaybe)
 import           Data.Ord             (comparing)
+import           Data.Ratio           (denominator)
 import           Data.Text            (Text)
 import qualified Data.Text            as T
-import           Text.Megaparsec      (parseMaybe)
+import           Text.Megaparsec      (anySingle, anySingleBut, between, choice,
+                                       empty, getOffset, many, optional,
+                                       parseMaybe, satisfy, sepBy, some, try)
+import           Text.Megaparsec.Char (char)
 import           Text.Read            (readMaybe)
 import           Text.Regex.PCRE      (AllMatches (getAllMatches), (=~))
 import           Text.Regex.PCRE.Text ()
-import Data.Ratio (denominator)
 
 focusId :: Focuser
 focusId = FTrav id
@@ -448,3 +452,164 @@ focusLength = FTrav $ \f focus -> case focus of
     fs@(FText s)     -> fs <$ f (FText . T.pack . show . T.length $ s)
     flst@(FList lst) -> flst <$ f (FText . T.pack . show . length $ lst)
 
+parseListElemIdxs :: Parser [(Int, Int)]
+parseListElemIdxs = do
+    symbol "["
+    idxs <- parseElemIdxs `sepBy` symbol ","
+    symbol "]"
+    pure idxs
+
+parseElemIdxs :: Parser (Int, Int)
+parseElemIdxs = lexeme $ do
+    idx1 <- getOffset
+    skipListElem
+    idx2 <- getOffset
+    pure (idx1, idx2 - idx1)
+
+skipListElem :: Parser ()
+skipListElem = choice
+    [ inQuotes
+    , inDoubleQuotes
+    , inSquareBraces
+    , inParens
+    , inCurlyBraces
+    , escapingCommaSquareBrace]
+    >> void (optional (try $ ws >> skipListElem))
+
+inQuotes = char '\'' >> escaping '\'' '\'' 1
+inDoubleQuotes = char '"' >> escaping '"' '"' 1
+inSquareBraces = char '[' >> escaping '[' ']' 1
+inParens = char '(' >> escaping '(' ')' 1
+inCurlyBraces = char '{' >> escaping '{' '}' 1
+escapingCommaSquareBrace = void $ some $ satisfy (\c -> c /= ',' && c /= ']' && not (isSpace c))
+
+escaping :: Char -> Char -> Int -> Parser ()
+escaping start end depth = choice
+    [ char end >> if depth == 1 then return () else void (optional $ escaping start end (depth - 1))
+    , char start >> void (optional $ escaping start end (depth + 1))
+    , char '\\' >> anySingle >> void (optional $ escaping start end depth)
+    , anySingle >> void (optional $ escaping start end depth)
+    ]
+
+focusEl :: Focuser
+focusEl = FTrav $ \f focus -> case focus of
+    FText s -> case parseMaybe parseListElemIdxs s of
+        Just idxs ->
+            let (nonMatches, matches) = fromIndexes 0 s idxs
+                newMatches = map toTextUnsafe <$> traverse (f . FText) matches
+            in  FText . T.concat . interleave nonMatches <$> newMatches
+        Nothing -> pure focus
+    FList _ -> pure focus
+
+parseObjKVIdxs :: Parser [((Int, Int), (Int, Int))]
+parseObjKVIdxs = do
+    symbol "{"
+    idxs <- parseKVIdxs `sepBy` symbol ","
+    symbol "}"
+    pure idxs
+
+parseKVIdxs :: Parser ((Int, Int), (Int, Int))
+parseKVIdxs = do
+    keyIdxs <- parseKeyIdxs
+    symbol ":"
+    valIdxs <- parseValIdxs
+    pure (keyIdxs, valIdxs)
+
+parseKeyIdxs :: Parser (Int, Int)
+parseKeyIdxs = lexeme $ do
+    idx1 <- getOffset
+    skipKey
+    idx2 <- getOffset
+    pure (idx1, idx2 - idx1)
+
+skipKey :: Parser ()
+skipKey = choice
+    [ inQuotes
+    , inDoubleQuotes
+    , inSquareBraces
+    , inParens
+    , inCurlyBraces
+    , escapingColonCurlyBrace]
+    >> void (optional (try $ ws >> skipKey))
+
+escapingColonCurlyBrace = void $ some $ satisfy (\c -> c /= ':' && c /= '}' && not (isSpace c))
+
+parseValIdxs :: Parser (Int, Int)
+parseValIdxs = lexeme $ do
+    idx1 <- getOffset
+    skipVal
+    idx2 <- getOffset
+    pure (idx1, idx2 - idx1)
+
+skipVal :: Parser ()
+skipVal = choice
+    [ inQuotes
+    , inDoubleQuotes
+    , inSquareBraces
+    , inParens
+    , inCurlyBraces
+    , escapingCommaCurlyBrace]
+    >> void (optional (try $ ws >> skipVal))
+
+escapingCommaCurlyBrace = void $ some $ satisfy (\c -> c /= ',' && c /= '}' && not (isSpace c))
+
+focusKV :: Focuser
+focusKV = FTrav $ \f focus -> case focus of
+    FText s -> case parseMaybe parseObjKVIdxs s of
+        Just idxs ->
+            let idxs_ = concatMap (\(a, b) -> [a, b]) idxs
+                (nonMatches, matches) = fromIndexes 0 s idxs_
+                matches_ = pairUp $ map FText matches
+                newMatches_ = map toListUnsafe <$> traverse (f . FList) matches_
+                newMatches = map toTextUnsafe . concat <$> newMatches_
+            in  FText . T.concat . interleave nonMatches <$> newMatches
+        Nothing -> pure focus
+    FList _ -> pure focus
+  where
+    pairUp :: [a] -> [[a]]
+    pairUp []             = []
+    pairUp (a1 : a2 : as) = [a1, a2] : pairUp as
+    pairUp _              = error "pairUp: list too short"
+
+data KeyType
+    = InQuotes Text
+    | InDoubleQuotes Text
+    | Default
+
+focusKey :: Focuser
+focusKey = FTrav $ \f focus -> case focus of
+    FList [FText key, FText val] -> case stripKey key of
+        InQuotes key_ -> setKey val . (\k -> "'" <> k <> "'") . toTextUnsafe <$> f (FText key_)
+        InDoubleQuotes key_ -> setKey val . (\k -> "\"" <> k <> "\"") . toTextUnsafe <$> f (FText key_)
+        Default -> setKey val . toTextUnsafe <$> f (FText key)
+    FText _ ->
+        let FTrav trav = focusKV `composeFocusers` focusKey
+        in  trav f focus
+
+stripKey :: Text -> KeyType
+stripKey s
+    | T.index s 0 == '"' && T.index s (T.length s - 1) == '"' =
+        InDoubleQuotes $ T.drop 1 $ T.dropEnd 1 s
+    | T.index s 0 == '\'' && T.index s (T.length s - 1) == '\''=
+        InQuotes $ T.drop 1 $ T.dropEnd 1 s
+    | otherwise = Default
+
+setKey :: Text -> Text -> Focus
+setKey val key = FList [FText key, FText val]
+
+focusVal :: Focuser
+focusVal = FTrav $ \f focus -> case focus of
+    FList _ ->
+        let FTrav trav = focusIndex 1
+        in  trav f focus
+    FText _ ->
+        let FTrav trav = focusKV `composeFocusers` focusVal
+        in  trav f focus
+
+focusAtKey :: Text -> Focuser
+focusAtKey key = focusKV
+    `composeFocusers` focusIf (IfSingle $ Comparison (QAll, EFocuser focusKey) OpEq (QAll, EText key))
+    `composeFocusers` focusVal
+
+focusAtIdx :: Int -> Focuser
+focusAtIdx i = focusCollect (focusEl) `composeFocusers` focusIndex i
