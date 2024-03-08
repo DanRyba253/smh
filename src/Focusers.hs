@@ -612,4 +612,4 @@ focusAtKey key = focusKV
     `composeFocusers` focusVal
 
 focusAtIdx :: Int -> Focuser
-focusAtIdx i = focusCollect (focusEl) `composeFocusers` focusIndex i
+focusAtIdx i = focusCollect focusEl `composeFocusers` focusIndex i
