@@ -18,7 +18,7 @@
 
 * made regex use perl style instead of POSIX style
 
-## 0.2.0 -- 2024-03-08
+## 0.2.0 -- 2024-03-10
 
 * added "el", "kv", "key", "val", "atKey", "atIdx" focusers
 
