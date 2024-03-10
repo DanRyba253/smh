@@ -26,4 +26,4 @@
 
 * fixed "regex" (it was very broken, lol)
 
-* added escaping support to string literals (only \")
+* added escaping support to string literals (only \\")
