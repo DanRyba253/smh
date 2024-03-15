@@ -95,33 +95,6 @@ getIndexes ranges len = nubOrd . sort . concatMap (getIndexes' . fixRange) $ ran
         | i < 0 = max (i + len) 0
         | otherwise = min i len
 
-
-data Evaluatable
-    = EText !Text
-    | ENumber !Rational
-    | EFocuser { evalFocuserUnsafe :: !Focuser }
-
-data IfExpr
-    = IfAnd ![IfExpr]
-    | IfOr ![IfExpr]
-    | IfSingle !Comparison
-
-data Comparison = Comparison
-    { cmpLHS :: !(Quantor, Evaluatable)
-    , cmpOp  :: !Oper
-    , cmpRHS :: !(Quantor, Evaluatable)
-    }
-
-data Quantor = QAll | QAny
-
-data Oper
-    = OpEq
-    | OpNe
-    | OpLt
-    | OpLe
-    | OpGt
-    | OpGe
-
 ws :: Parser ()
 ws = L.space space1 empty empty
 

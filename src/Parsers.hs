@@ -2,12 +2,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Parsers where
-import           Common               (Comparison (..), Evaluatable (..),
-                                       Focuser (..), IfExpr (..), Mapping,
-                                       Oper (..), Parser, Quantor (..),
+import           Common               (Focuser (..), Mapping, Parser,
                                        Range (..), composeFocusers, focusTo,
                                        foldFocusers, foldMappings, integer,
-                                       lexeme, mappingTo, rational, symbol)
+                                       lexeme, mappingTo, rational,
+                                       showRational, symbol)
 import           Data.Char            (isAlphaNum)
 import           Data.Functor         (($>))
 import           Data.Maybe           (fromMaybe)
@@ -15,15 +14,18 @@ import           Data.Text            (Text)
 import qualified Data.Text            as T
 import           Focusers             (escaping, focusAtIdx, focusAtKey,
                                        focusAverage, focusCollect, focusCols,
+                                       focusCompEq, focusCompOrd, focusConst,
                                        focusContains, focusEach, focusEl,
                                        focusEndsWith, focusFilter, focusId,
                                        focusIf, focusIndex, focusIsAlpha,
                                        focusIsAlphaNum, focusIsDigit,
-                                       focusIsLower, focusIsSpace, focusIsUpper,
-                                       focusKV, focusKey, focusLength,
-                                       focusLines, focusMaxBy, focusMaxLexBy,
-                                       focusMinBy, focusMinLexBy, focusProduct,
-                                       focusRegex, focusSlice, focusSortedBy,
+                                       focusIsLower, focusIsNumber,
+                                       focusIsSpace, focusIsUpper, focusKV,
+                                       focusKey, focusLength, focusLines,
+                                       focusLogic2, focusLogicMany, focusMaxBy,
+                                       focusMaxLexBy, focusMinBy, focusMinLexBy,
+                                       focusNot, focusProduct, focusRegex,
+                                       focusSlice, focusSortedBy,
                                        focusSortedLexBy, focusSpace,
                                        focusStartsWith, focusSum, focusVal,
                                        focusWords)
@@ -48,7 +50,6 @@ parseFocuser :: Parser Focuser
 parseFocuser = label "valid focuser" $ choice
     [ symbol "id" $> focusId
     , symbol "each" $> focusEach
-    , parseFocusCollect
     , symbol "words" $> focusWords
     , symbol "lines" $> focusLines
     , symbol "ws" $> focusSpace
@@ -87,6 +88,7 @@ parseFocuser = label "valid focuser" $ choice
     , symbol "isAlphaNum" $> focusIsAlphaNum
     , symbol "isAlpha" $> focusIsAlpha
     , symbol "isSpace" $> focusIsSpace
+    , symbol "isNumber" $> focusIsNumber
     , parseFocusRegex
     , parseFocusFilter
     , parseFocusContains
@@ -98,6 +100,18 @@ parseFocuser = label "valid focuser" $ choice
     , symbol "val" $> focusVal
     , parseFocusAtKey
     , parseFocusAtIdx
+    , parseFocusAll
+    , parseFocusAny
+    , symbol "not" $> focusNot
+    , parseFocusOr
+    , parseFocusAnd
+    , parseFocusEq
+    , parseFocusNeq
+    , parseFocusLeq
+    , parseFocusGeq
+    , try parseFocusLt <|> parseFocusCollect
+    , parseFocusGt
+    , parseFocusLit
     ]
 
 parseFocusers :: Parser [Focuser]
@@ -105,11 +119,8 @@ parseFocusers = label "valid focuser stack" $ parseFocuser `sepBy1` symbol "."
 
 parseFocusCollect :: Parser Focuser
 parseFocusCollect = do
-    symbol "<"
-    focusers <- parseFocusers
-    symbol ">"
-    let focuser = foldFocusers focusers
-    return $ focusCollect focuser
+    symbol "%"
+    focusCollect <$> parseFocuser
 
 parseFocusSlice :: Parser Focuser
 parseFocusSlice = do
@@ -200,54 +211,7 @@ parseFocusPow = do
 parseFocusIf :: Parser Focuser
 parseFocusIf = do
     lexeme $ string "if" >> notFollowedBy (satisfy isAlphaNum)
-    focusIf <$> parseIfExpr
-
-parseIfExpr :: Parser IfExpr
-parseIfExpr = label "one or more blocks separated by '||'" $ do
-    andBlocks <- parseAndBlock `sepBy1` symbol "||"
-    case andBlocks of
-        []      -> empty
-        [block] -> return block
-        _       -> return $ IfOr andBlocks
-
-parseAndBlock :: Parser IfExpr
-parseAndBlock = label "one or more blocks separated by '&&'" $ do
-    atoms <- parseAtom `sepBy1` symbol "&&"
-    case atoms of
-        []     -> empty
-        [atom] -> return atom
-        _      -> return $ IfAnd atoms
-
-parseAtom :: Parser IfExpr
-parseAtom = between (symbol "(") (symbol ")") parseIfExpr <|> try parseComp <|> parseIfExprShort
-
-parseComp :: Parser IfExpr
-parseComp = do
-    q1 <- fromMaybe QAll <$> optional parseQuantor
-    lhs <- fromMaybe (EFocuser focusId) <$> optional parseEvaluatableLong
-    comp <- parseCompOp
-    q2 <- fromMaybe QAll <$> optional parseQuantor
-    rhs <- parseEvaluatableLong
-    return $ IfSingle $ Comparison (q1, lhs) comp (q2, rhs)
-
-parseQuantor :: Parser Quantor
-parseQuantor = symbol "all " $> QAll <|> symbol "any " $> QAny
-
-parseCompOp :: Parser Oper
-parseCompOp = choice
-    [ symbol "=" $> OpEq
-    , symbol "!=" $> OpNe
-    , symbol "<=" $> OpLe
-    , symbol "<"  $> OpLt
-    , symbol ">=" $> OpGe
-    , symbol ">"  $> OpGt
-    ]
-
-parseIfExprShort :: Parser IfExpr
-parseIfExprShort = do
-    q <- fromMaybe QAll <$> optional parseQuantor
-    e <- EFocuser <$> parseFocuser
-    return $ IfSingle $ Comparison (q, e) OpEq (QAny, EText "1")
+    focusIf <$> parseFocuser
 
 parseFocusRegex :: Parser Focuser
 parseFocusRegex = do
@@ -257,7 +221,7 @@ parseFocusRegex = do
 parseFocusFilter :: Parser Focuser
 parseFocusFilter = do
     lexeme $ string "filter" >> notFollowedBy (satisfy isAlphaNum)
-    focusFilter <$> parseIfExpr
+    focusFilter <$> parseFocuser
 
 parseFocusContains :: Parser Focuser
 parseFocusContains = do
@@ -289,6 +253,90 @@ parseFocusAtIdx :: Parser Focuser
 parseFocusAtIdx = do
     symbol "atIdx "
     focusAtIdx <$> integer
+
+parseFocusAll :: Parser Focuser
+parseFocusAll = do
+    symbol "all "
+    focusLogicMany and <$> parseFocuser
+
+parseFocusAny :: Parser Focuser
+parseFocusAny = do
+    symbol "any "
+    focusLogicMany or <$> parseFocuser
+
+parseFocusAnd :: Parser Focuser
+parseFocusAnd = do
+    symbol "&&"
+    p1 <- parseFocuser
+    p2 <- parseFocuser
+    return $ focusLogic2 (&&) p1 p2
+
+parseFocusOr :: Parser Focuser
+parseFocusOr = do
+    symbol "||"
+    p1 <- parseFocuser
+    p2 <- parseFocuser
+    return $ focusLogic2 (||) p1 p2
+
+parseFocusEq :: Parser Focuser
+parseFocusEq = do
+    symbol "="
+    p1 <- parseFocuser
+    mp2 <- optional parseFocuser
+    return $ case mp2 of
+        Just p2 -> focusCompEq (==) p1 p2
+        Nothing -> focusCompEq (==) focusId p1
+
+parseFocusNeq :: Parser Focuser
+parseFocusNeq = do
+    symbol "!="
+    p1 <- parseFocuser
+    mp2 <- optional parseFocuser
+    return $ case mp2 of
+        Just p2 -> focusCompEq (/=) p1 p2
+        Nothing -> focusCompEq (/=) focusId p1
+
+parseFocusLt :: Parser Focuser
+parseFocusLt = do
+    symbol "<"
+    p1 <- parseFocuser
+    mp2 <- optional parseFocuser
+    return $ case mp2 of
+        Just p2 -> focusCompOrd (<) p1 p2
+        Nothing -> focusCompOrd (<) focusId p1
+
+parseFocusGt :: Parser Focuser
+parseFocusGt = do
+    symbol ">"
+    p1 <- parseFocuser
+    mp2 <- optional parseFocuser
+    return $ case mp2 of
+        Just p2 -> focusCompOrd (>) p1 p2
+        Nothing -> focusCompOrd (>) focusId p1
+
+parseFocusLeq :: Parser Focuser
+parseFocusLeq = do
+    symbol "<="
+    p1 <- parseFocuser
+    mp2 <- optional parseFocuser
+    return $ case mp2 of
+        Just p2 -> focusCompOrd (<=) p1 p2
+        Nothing -> focusCompOrd (<=) focusId p1
+
+parseFocusGeq :: Parser Focuser
+parseFocusGeq = do
+    symbol ">="
+    p1 <- parseFocuser
+    mp2 <- optional parseFocuser
+    return $ case mp2 of
+        Just p2 -> focusCompOrd (>=) p1 p2
+        Nothing -> focusCompOrd (>=) focusId p1
+
+parseFocusLit :: Parser Focuser
+parseFocusLit = parseFocusString <|> parseFocusNumber
+  where
+    parseFocusString = focusConst <$> stringLiteral
+    parseFocusNumber = focusConst . showRational <$> rational
 
 -- mapping parsers
 
@@ -326,21 +374,9 @@ parseMappingMap = do
     lexeme $ string "map" >> notFollowedBy (satisfy isAlphaNum)
     mappingMap <$> parseMapping
 
-parseEvaluatable :: Parser Evaluatable
-parseEvaluatable =
-    EText <$> stringLiteral <|>
-    ENumber <$> rational <|>
-    EFocuser <$> parseFocuser
-
-parseEvaluatableLong :: Parser Evaluatable
-parseEvaluatableLong =
-    EText <$> stringLiteral <|>
-    ENumber <$> rational <|>
-    EFocuser . foldFocusers <$> parseFocusers
-
 stringLiteral :: Parser Text
 stringLiteral = T.pack <$> label "string literal" (do
-    between (char '"') (char '"') $ many $ choice
+    between (char '"') (symbol "\"") $ many $ choice
         [ char '\\' >> anySingle
         , anySingleBut '"'
         ])
@@ -348,12 +384,12 @@ stringLiteral = T.pack <$> label "string literal" (do
 parseMappingAppend :: Parser Mapping
 parseMappingAppend = do
     lexeme $ string "append" >> notFollowedBy (satisfy isAlphaNum)
-    mappingAppend <$> parseEvaluatableLong
+    mappingAppend . foldFocusers <$> parseFocusers
 
 parseMappingPrepend :: Parser Mapping
 parseMappingPrepend = do
     lexeme $ string "prepend" >> notFollowedBy (satisfy isAlphaNum)
-    mappingPrepend <$> parseEvaluatableLong
+    mappingPrepend . foldFocusers <$> parseFocusers
 
 parseMappingAdd :: Parser Mapping
 parseMappingAdd = do

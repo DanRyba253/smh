@@ -5,9 +5,10 @@ import           Common           (readMaybeRational, showRational)
 import           Data.Char        (isAlpha, isAlphaNum, isDigit, isLower,
                                    isSpace, isUpper, toLower, toUpper)
 import           Data.Function    (on)
-import           Data.List        (groupBy, transpose)
+import           Data.List        (groupBy, isInfixOf, isPrefixOf, isSuffixOf,
+                                   transpose)
 import           Data.List.Extra  (dropEnd, groupBy, sort, takeEnd, transpose)
-import           Data.Maybe       (fromMaybe, mapMaybe, fromJust)
+import           Data.Maybe       (fromJust, fromMaybe, mapMaybe)
 import qualified Data.Text        as T
 import           Focusers         (interleave, myWords)
 import           System.IO.Unsafe (unsafePerformIO)
@@ -26,7 +27,7 @@ focuserTests = testGroup "Focuser Tests"
         ]
     , testGroup "each"
         [ "each|get" $= concatMap (: "\n") input
-        , "<words>.each|get" $=$ "words|get"
+        , "%words.each|get" $=$ "words|get"
         ]
     , testGroup "words"
         [ "words|get-tree" $= show (words input)
@@ -61,28 +62,28 @@ focuserTests = testGroup "Focuser Tests"
         , "{:}|get-tree" $= show [input]
         ]
     , testGroup "sortLexBy"
-        [ "<words>.sortedLexBy id.each|get-tree" $= show (sort $ words input)
-        , "<words>.sortedLexBy id.each|over id" $= input
+        [ "%words.sortedLexBy id.each|get-tree" $= show (sort $ words input)
+        , "%words.sortedLexBy id.each|over id" $= input
         ]
     , testGroup "minLexBy/maxLexBy/minLex/maxLex"
-        [ "<words>.minLexBy id|get-tree" $=$ "<words>.sortedLexBy id.[0]|get-tree"
-        , "<words>.maxLexBy id|get-tree" $=$ "<words>.sortedLexBy id.[-1]|get-tree"
-        , "<words>.minLex|get-tree" $=$ "<words>.minLexBy id|get-tree"
-        , "<words>.maxLex|get-tree" $=$ "<words>.maxLexBy id|get-tree"
+        [ "%words.minLexBy id|get-tree" $=$ "%words.sortedLexBy id.[0]|get-tree"
+        , "%words.maxLexBy id|get-tree" $=$ "%words.sortedLexBy id.[-1]|get-tree"
+        , "%words.minLex|get-tree" $=$ "%words.minLexBy id|get-tree"
+        , "%words.maxLex|get-tree" $=$ "%words.maxLexBy id|get-tree"
         ]
     , testGroup "sortedBy"
-        [ "<words.if isDigit>.sortedBy id.each|get-tree" $=
+        [ "%(words.if isDigit).sortedBy id.each|get-tree" $=
             show (map showRational $ sort $ map (fromJust . readMaybeRational . T.pack) $ filter (all isDigit) $ words input)
-        , "<words.if isAlpha>.sortedBy id.each|over id" $=$ "id|over id"
+        , "%(words.if isAlpha).sortedBy id.each|over id" $=$ "id|over id"
         ]
     , testGroup "sorted"
-        [ "<words>.sorted|get-tree" $=$ "<words>.sortedBy id|get-tree"
+        [ "%words.sorted|get-tree" $=$ "%words.sortedBy id|get-tree"
         ]
     , testGroup "minBy/maxBy/min/max"
-        [ "<words>.minBy id|get-tree" $=$ "<words>.sortedBy id.[0]|get-tree"
-        , "<words>.maxBy id|get-tree" $=$ "<words>.sortedBy id.[-1]|get-tree"
-        , "<words>.min|get-tree" $=$ "<words>.minBy id|get-tree"
-        , "<words>.max|get-tree" $=$ "<words>.maxBy id|get-tree"
+        [ "%words.minBy id|get-tree" $=$ "%words.sortedBy id.[0]|get-tree"
+        , "%words.maxBy id|get-tree" $=$ "%words.sortedBy id.[-1]|get-tree"
+        , "%words.min|get-tree" $=$ "%words.minBy id|get-tree"
+        , "%words.max|get-tree" $=$ "%words.maxBy id|get-tree"
         ]
     , testGroup "index"
         [ "[3]|get-tree" $= show [take 1 $ drop 3 input]
@@ -105,73 +106,71 @@ focuserTests = testGroup "Focuser Tests"
         , "(words.len)|get-tree" $=$ "words.len|get-tree"
         ]
     , testGroup "sum"
-        [ "<words>.sum|get-tree" $= show [showRational (sum $ inputNums input)]
+        [ "%words.sum|get-tree" $= show [showRational (sum $ inputNums input)]
         , "words.sum|get-tree" $=
             show (map (showRational . sum . mapMaybe (readMaybeRational . T.pack . (:[]))) $ words input)
         ]
     , testGroup "product"
-        [ "<words>.product|get-tree" $= show [showRational (product $ inputNums input)]
+        [ "%words.product|get-tree" $= show [showRational (product $ inputNums input)]
         , "words.product|get-tree" $=
             show (map (showRational . product . mapMaybe (readMaybeRational . T.pack . (:[]))) $ words input)
         ]
     , testGroup "average"
-        [ "<words>.average|get-tree" $= show [showRational (average $ inputNums input)]
+        [ "%words.average|get-tree" $= show [showRational (average $ inputNums input)]
         , "words.average|get-tree" $=
             show (map (showRational . average . mapMaybe (readMaybeRational . T.pack . (:[]))) $ words input)
         ]
     , testGroup "add"
-        [ "<words.add 1>.sum|get-tree" $= show [showRational (sum $ map (+1) $ inputNums input)]
+        [ "%(words.add 1).sum|get-tree" $= show [showRational (sum $ map (+1) $ inputNums input)]
         ]
     , testGroup "sub"
-        [ "<words.sub 1>.sum|get-tree" $= show [showRational (sum $ map (subtract 1) $ inputNums input)]
+        [ "%(words.sub 1).sum|get-tree" $= show [showRational (sum $ map (subtract 1) $ inputNums input)]
         ]
     , testGroup "mult"
-        [ "<words.mult 2>.sum|get-tree" $= show [showRational (sum $ map (*2) $ inputNums input)]
+        [ "%(words.mult 2).sum|get-tree" $= show [showRational (sum $ map (*2) $ inputNums input)]
         ]
     , testGroup "div"
-        [ "<words.div 2>.sum|get-tree" $= show [showRational (sum $ map (/ 2) $ inputNums input)]
+        [ "%(words.div 2).sum|get-tree" $= show [showRational (sum $ map (/ 2) $ inputNums input)]
         ]
     , testGroup "pow"
-        [ "<words.pow 2>.sum|get-tree" $= show [showRational (sum $ map (^^ 2) $ inputNums input)]
+        [ "%(words.pow 2).sum|get-tree" $= show [showRational (sum $ map (^^ 2) $ inputNums input)]
         ]
     , testGroup "abs"
-        [ "<words.abs>.sum|get-tree" $= show [showRational (sum $ map abs $ inputNums input)]
+        [ "%(words.abs).sum|get-tree" $= show [showRational (sum $ map abs $ inputNums input)]
         ]
     , testGroup "sign"
-        [ "<words.sign>.sum|get-tree" $= show [showRational (sum $ map signum $ inputNums input)]
+        [ "%(words.sign).sum|get-tree" $= show [showRational (sum $ map signum $ inputNums input)]
         ]
     , testGroup "if"
-        [ "words.if 1=1|get-tree" $= show (words input)
-        , "words.if 1=2|get-tree" $= "[]"
-        , "words.if \"1\"=\"1\"|get-tree" $= show (words input)
-        , "words.if \"1\"=\"2\"|get-tree" $= "[]"
-        , "words.if 1=\"1\"|get-tree" $= show (words input)
-        , "words.if 1=\"2\"|get-tree" $= "[]"
-        , "words.if \"1\"=1|get-tree" $= show (words input)
-        , "words.if \"1\"=2|get-tree" $= "[]"
-        , "words.if id<=id|get-tree" $= show (words input)
-        , "words.if id=len|get-tree" $= show (filter (\w -> w == show (length w)) $ words input)
-        , "words.if len=2|get-tree" $= show (filter (\w -> length w == 2) $ words input)
-        , "words.if len=\"3\"|get-tree" $= show (filter (\w -> length w == 3) $ words input)
-        , "<words>.if id<=id|get-tree" $= "[]"
-        , "<words>.if id<id|get-tree" $= "[]"
-        , "<words>.if id>id|get-tree" $= "[]"
-        , "<words>.if id>=id|get-tree" $= "[]"
-        , "words.if len<3 && len>1|get-tree" $= show (filter (\w -> length w < 3 && length w > 1) $ words input)
-        , "words.if len<2 || len>2|get-tree" $= show (filter (\w -> length w < 2 || length w > 2) $ words input)
-        , "words.if len>1 && len<3 || [0].isUpper=1|get-tree" $=
+        [ "words.if =1 1|get-tree" $= show (words input)
+        , "words.if =2 1|get-tree" $= "[]"
+        , "words.if =\"1\" \"1\"|get-tree" $= show (words input)
+        , "words.if =\"2\" \"1\"|get-tree" $= "[]"
+        , "words.if =\"1\" 1|get-tree" $= show (words input)
+        , "words.if =\"2\" 1|get-tree" $= "[]"
+        , "words.if =1 \"1\"|get-tree" $= show (words input)
+        , "words.if =2 \"1\"|get-tree" $= "[]"
+        , "words.if <=id id|get-tree" $= show (words input)
+        , "words.if =len id|get-tree" $= show (filter (\w -> w == show (length w)) $ words input)
+        , "words.if =len 2|get-tree" $= show (filter (\w -> length w == 2) $ words input)
+        , "words.if =len \"3\"|get-tree" $= show (filter (\w -> length w == 3) $ words input)
+        , "%words.if <=id id|get-tree" $= "[]"
+        , "%words.if <id id|get-tree" $= "[]"
+        , "%words.if >id id|get-tree" $= "[]"
+        , "%words.if >=id id|get-tree" $= "[]"
+        , "words.if && < len 3 > len 1|get-tree" $= show (filter (\w -> length w < 3 && length w > 1) $ words input)
+        , "words.if || < len 2 > len 2|get-tree" $= show (filter (\w -> length w < 2 || length w > 2) $ words input)
+        , "words.if || && > len 1 < len 3 ([0].isUpper)|get-tree" $=
             show (filter (\w -> length w > 1 && length w < 3 || isUpper (head w)) $ words input)
-        , "words.if [0].isUpper=1 || len>1 && len<3|get-tree" $=
+        , "words.if || ([0].isUpper) && > len 1 < len 3|get-tree" $=
             show (filter (\w -> isUpper (head w) || length w > 1 && length w < 3) $ words input)
-        , "words.if ([0].isUpper=1 || len>1) && len<3|get-tree" $=
+        , "words.if && || ([0].isUpper) > len 1 < len 3|get-tree" $=
             show (filter (\w -> (isUpper (head w) || length w > 1) && length w < 3) $ words input)
         , "words.if len|get-tree" $= show (filter (\w -> length w == 1) $ words input)
         , "words.if all (each.isUpper)|get-tree" $= show (filter (all isUpper) $ words input)
         , "words.if any (each.isUpper)|get-tree" $= show (filter (any isUpper) $ words input)
-        , "words.if 1=all each.isUpper|get-tree" $= show (filter (all isUpper) $ words input)
-        , "words.if 1=any each.isUpper|get-tree" $= show (filter (any isUpper) $ words input)
-        , "words.if each=each|get-tree" $= show (filter allEqual $ words input)
-        , "words.if =\"ee\"|get-tree" $=$ "words.if id=\"ee\"|get-tree"
+        , "words.if all (each.isUpper)|get-tree" $= show (filter (all isUpper) $ words input)
+        , "words.if any (each.isUpper)|get-tree" $= show (filter (any isUpper) $ words input)
         ]
     , testGroup "isUpper"
         [ "words.if isUpper|get-tree" $= show (filter (all isUpper) $ words input)
@@ -192,10 +191,10 @@ focuserTests = testGroup "Focuser Tests"
         [ "words.if isDigit|get-tree" $= show (filter (all isDigit) $ words input)
         ]
     , testGroup "collect"
-        [ "<words>|get-tree" $= show [words input]
+        [ "%words|get-tree" $= show [words input]
         ]
     , testGroup "filter"
-        [ "<words>.filter len<3.each|get-tree" $=$ "words.if len<3|get-tree" ]
+        [ "%words.filter < len 3.each|get-tree" $=$ "words.if < len 3|get-tree" ]
     , testGroup "regex"
         [ "regex \"([a-z]|[A-Z]|[0-9]|_)+\"|get" $=$ "words|get"
         , "regex \"([a-z]|[A-Z]|[0-9]|_)+\"|over id" $=$ "id|over id"
@@ -214,13 +213,22 @@ focuserTests = testGroup "Focuser Tests"
             , "kv.val|get" $$=$ "kv.[1]|get"
             ]
         , testGroup "atKey"
-            [ "atKey \"quiz\"|get" $$=$ "kv.if key=\"quiz\".val|get"
+            [ "atKey \"quiz\"|get" $$=$ "kv.if = key \"quiz\".val|get"
             ]
         , testGroup "atIdx"
             [ "atKey \"quiz\".atKey \"sport\".val.atKey \"options\".atIdx 3|get" $$= "\"Huston Rocket\"\n"
             ]
         , testGroup "el"
-            [ "atKey \"quiz\".atKey \"sport\".val.atKey \"options\".<el>.[3]|get" $$= "\"Huston Rocket\"\n" ]
+            [ "atKey \"quiz\".atKey \"sport\".val.atKey \"options\".%el.[3]|get" $$= "\"Huston Rocket\"\n" ]
+        ]
+    , testGroup "startsWith"
+        [ "words.if startsWith \"a\"|get-tree" $= show (filter (isPrefixOf "a") $ words input)
+        ]
+    , testGroup "endsWith"
+        [ "words.if endsWith \"a\"|get-tree" $= show (filter (isSuffixOf "a") $ words input)
+        ]
+    , testGroup "contains"
+        [ "words.if contains \"a\"|get-tree" $= show (filter (isInfixOf "a") $ words input)
         ]
     ]
 
@@ -234,7 +242,7 @@ mappingTests = testGroup "Mapping Tests"
         [ "id|over len" $= show (length input)
         ]
     , testGroup "map"
-        [ "<words>|over map len" $= "1 2 3 3 1 1 1 1\n1 2 3 3 1 1 1 1  1\n1 2 3 3 1 1 1 1  1\n\n"
+        [ "%words|over map len" $= "1 2 3 3 1 1 1 1\n1 2 3 3 1 1 1 1  1\n1 2 3 3 1 1 1 1  1\n\n"
         , "words|over map upper" $=$ "words|over upper"
         , "id|over id" $= input
         ]
@@ -247,7 +255,7 @@ mappingTests = testGroup "Mapping Tests"
         , "id|over prepend \"hello\"" $= ("hello" ++ input)
         , "id|over append len" $= (input ++ show (length input))
         , "id|over prepend len" $= (show (length input) ++ input)
-        , "id|over prepend <words>" $= input
+        , "id|over prepend %words" $= input
         ]
     , testGroup "upper/lower"
         [ "id|over upper" $= map toUpper input
@@ -278,21 +286,21 @@ mappingTests = testGroup "Mapping Tests"
         , "id|over {:}" $= input
         ]
     , testGroup "sortLexBy"
-        [ "<words>|over sortLexBy id" $= "1 1 2 2 3 3 Ccc Hhh\nMmm _ _ _ _ _ a bb  dd1\ne f gg ii2 j k ll nn3  o\n\n"
-        , "<words.<each>>|over sortLexBy id" $= input
+        [ "%words|over sortLexBy id" $= "1 1 2 2 3 3 Ccc Hhh\nMmm _ _ _ _ _ a bb  dd1\ne f gg ii2 j k ll nn3  o\n\n"
+        , "%(words.%each)|over sortLexBy id" $= input
         ]
     , testGroup "sortLex"
-        [ "<words>|over sortLexBy id" $=$ "<words>|over sortLex"
+        [ "%words|over sortLexBy id" $=$ "%words|over sortLex"
         ]
     , testGroup "sortBy"
-        [ "<words>|over sortBy id" $= "a bb Ccc dd1 e 1 1 3\n_ f gg Hhh ii2 j 2 2  _\n_ k ll Mmm nn3 o 3 _  _\n\n"
-        , "<words.<each>>|over sortBy id" $= input
+        [ "%words|over sortBy id" $= "a bb Ccc dd1 e 1 1 3\n_ f gg Hhh ii2 j 2 2  _\n_ k ll Mmm nn3 o 3 _  _\n\n"
+        , "%(words.%each)|over sortBy id" $= input
         ]
     , testGroup "sort"
-        [ "<words>|over sortBy id" $=$ "<words>|over sort"
+        [ "%words|over sortBy id" $=$ "%words|over sort"
         ]
     , testGroup "id"
-        [ "<words>|over id" $= input
+        [ "%words|over id" $= input
         ]
     , testGroup "to"
         [ "words|over to len" $=$ "words|over len" ]

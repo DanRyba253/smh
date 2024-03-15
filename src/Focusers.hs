@@ -6,12 +6,11 @@
 
 module Focusers where
 
-import           Common               (Comparison (..), Evaluatable (..),
-                                       Focus (..), Focuser (..), IfExpr (..),
-                                       Mapping, Oper (..), Parser, Quantor (..),
-                                       Range (RangeSingle), _toListUnsafe,
-                                       composeFocusers, fromIndexes, getIndexes,
-                                       lexeme, makeFilteredText, mapText,
+import           Common               (Focus (..), Focuser (..), Mapping,
+                                       Parser, Range (RangeSingle),
+                                       _toListUnsafe, composeFocusers,
+                                       fromIndexes, getIndexes, lexeme,
+                                       makeFilteredText, mapText,
                                        readMaybeRational, showRational, symbol,
                                        toListUnsafe, toTextUnsafe, unsort, ws)
 import           Control.Applicative  ((<|>))
@@ -309,70 +308,10 @@ average _ xs = sum xs / fromIntegral (length xs)
 
 
 
-focusIf :: IfExpr -> Focuser
-focusIf ifexpr = FTrav $ \f focus -> if focus `passesIf` ifexpr
-    then f focus
-    else pure focus
-  where
-    passesIf :: Focus -> IfExpr -> Bool
-    passesIf focus (IfAnd ifexprs) = all (passesIf focus) ifexprs
-    passesIf focus (IfOr ifexprs) = any (passesIf focus) ifexprs
-    passesIf focus (IfSingle comp) =
-        let op = cmpOp comp
-            q1 = fst $ cmpLHS comp
-            q2 = fst $ cmpRHS comp
-            f1s = evaluateEval focus $ snd $ cmpLHS comp
-            f2s = evaluateEval focus $ snd $ cmpRHS comp
-            results = [[applyOp op f1 f2 | f2 <- f2s] | f1 <- f1s]
-        in case (q1, q2) of
-            (QAll, QAll) -> all and results
-            (QAll, QAny) -> all or results
-            (QAny, QAll) -> any and results
-            (QAny, QAny) -> any or results
-
-    evaluateEval :: Focus -> Evaluatable -> [Either Rational Focus]
-    evaluateEval focus eval = case eval of
-        EText s               -> [Right $ FText s]
-        ENumber n             -> [Left n]
-        EFocuser (FTrav trav) -> Right <$> focus ^.. trav
-
-    applyOp :: Oper -> Either Rational Focus -> Either Rational Focus -> Bool
-    applyOp OpEq (Left n1) (Left n2) = n1 == n2
-    applyOp OpEq (Right f1) (Right f2) = f1 == f2
-    applyOp OpEq (Left n1) (Right (FText s2)) = Just n1 == readMaybeRational s2
-    applyOp OpEq (Right (FText s1)) (Left n2) = readMaybeRational s1 == Just n2
-    applyOp OpNe (Left n1) (Left n2) = n1 /= n2
-    applyOp OpNe (Left n1) (Right (FText s2)) = case readMaybeRational s2 of
-        Just n2 -> n1 /= n2
-        Nothing -> False
-    applyOp OpNe (Right (FText s1)) (Left n2) = case readMaybeRational s1 of
-        Just n1 -> n1 /= n2
-        Nothing -> False
-    applyOp OpNe (Right f1) (Right f2) = f1 /= f2
-    applyOp op e1 e2 = case op of
-        OpLt -> applyOpOrd (<) e1 e2
-        OpGt -> applyOpOrd (>) e1 e2
-        OpLe -> applyOpOrd (<=) e1 e2
-        OpGe -> applyOpOrd (>=) e1 e2
-        _    -> False
-      where
-        applyOpOrd
-            :: (forall a. Ord a => a -> a -> Bool)
-            -> Either Rational Focus
-            -> Either Rational Focus
-            -> Bool
-        applyOpOrd f (Left n1) (Left n2) = f n1 n2
-        applyOpOrd f (Left n1) (Right (FText s2)) = case readMaybeRational s2 of
-            Just n2 -> f n1 n2
-            Nothing -> False
-        applyOpOrd f (Right (FText s1)) (Left n2) = case readMaybeRational s1 of
-            Just n1 -> f n1 n2
-            Nothing -> False
-        applyOpOrd f (Right (FText s1)) (Right (FText s2)) =
-            case (readMaybeRational s1, readMaybeRational s2) of
-                (Just n1, Just n2) -> f n1 n2
-                _                  -> f s1 s2
-        applyOpOrd _ _ _ = False
+focusIf :: Focuser -> Focuser
+focusIf (FTrav trav) = FTrav $ \f focus -> case focus ^.. trav of
+    [FText "1"] -> f focus
+    _           -> pure focus
 
 logicFocuser :: (Focus -> Bool) -> Focuser
 logicFocuser pred = FTrav $ lens
@@ -411,6 +350,13 @@ focusIsSpace = logicFocuser (\case
     FText s -> T.all isSpace s
     _         -> False)
 
+focusIsNumber :: Focuser
+focusIsNumber = logicFocuser (\case
+    FText s -> case readMaybeRational s of
+        Just _  -> True
+        Nothing -> False
+    _         -> False)
+
 focusRegex :: Text -> Focuser
 focusRegex regex = FTrav $ \f focus -> case focus of
     FText s ->
@@ -420,8 +366,8 @@ focusRegex regex = FTrav $ \f focus -> case focus of
         in  FText . T.concat . interleave nonMatches <$> newMatches
     _ -> pure focus
 
-focusFilter :: IfExpr -> Focuser
-focusFilter pred = focusCollect $ focusEach `composeFocusers` focusIf pred
+focusFilter :: Focuser -> Focuser
+focusFilter ftrav = focusCollect $ focusEach `composeFocusers` focusIf ftrav
 
 focusContains :: Text -> Focuser
 focusContains text = FTrav $ lens contains const
@@ -608,8 +554,63 @@ focusVal = FTrav $ \f focus -> case focus of
 
 focusAtKey :: Text -> Focuser
 focusAtKey key = focusKV
-    `composeFocusers` focusIf (IfSingle $ Comparison (QAll, EFocuser focusKey) OpEq (QAll, EText key))
+    `composeFocusers` focusIf (focusCompEq (==) focusKey (focusConst key))
     `composeFocusers` focusVal
 
 focusAtIdx :: Int -> Focuser
 focusAtIdx i = focusCollect focusEl `composeFocusers` focusIndex i
+
+textToBool :: Text -> Bool
+textToBool = \case
+    "1" -> True
+    _   -> False
+
+boolToText :: Bool -> Text
+boolToText = \case
+    True  -> "1"
+    False -> "0"
+
+focusLogic2 :: (Bool -> Bool -> Bool) -> Focuser -> Focuser -> Focuser
+focusLogic2 op (FTrav t1) (FTrav t2) = FTrav $ \f focus ->
+    case (focus ^.. t1, focus ^.. t2) of
+    ([FText s1], [FText s2]) ->
+        let b1 = textToBool s1
+            b2 = textToBool s2
+        in  focus <$ (f . FText . boolToText $ op b1 b2)
+
+focusToMaybeBool :: Focus -> Maybe Bool
+focusToMaybeBool = \case
+    FText s -> Just $ textToBool s
+    FList _ -> Nothing
+
+focusLogicMany :: ([Bool] -> Bool) -> Focuser -> Focuser
+focusLogicMany op (FTrav t) = FTrav $ \f focus ->
+    case traverse focusToMaybeBool (focus ^.. t) of
+        Just bs -> focus <$ (f . FText . boolToText $ op bs)
+        Nothing -> pure focus
+
+focusNot :: Focuser
+focusNot = FTrav $ \f focus ->
+    case focusToMaybeBool focus of
+        Just b  -> focus <$ (f . FText . boolToText $ not b)
+        Nothing -> pure focus
+
+focusConst :: Text -> Focuser
+focusConst s = FTrav $ lens (const $ FText s) const
+
+focusCompOrd :: (forall a . (Ord a, Eq a) => a -> a -> Bool) -> Focuser -> Focuser -> Focuser
+focusCompOrd op (FTrav t1) (FTrav t2) = FTrav $ \f focus ->
+    case (focus ^.. t1, focus ^.. t2) of
+    ([FText s1], [FText s2]) -> case (readMaybeRational s1, readMaybeRational s2) of
+        (Just r1, Just r2) -> focus <$ (f . FText . boolToText $ op r1 r2)
+        _                  -> focus <$ (f . FText . boolToText $ op s1 s2)
+    _ -> pure focus
+
+focusCompEq :: (forall a . Eq a => a -> a -> Bool) -> Focuser -> Focuser -> Focuser
+focusCompEq op (FTrav t1) (FTrav t2) = FTrav $ \f focus ->
+    case (focus ^.. t1, focus ^.. t2) of
+    ([FText s1], [FText s2]) -> case (readMaybeRational s1, readMaybeRational s2) of
+        (Just r1, Just r2) -> focus <$ (f . FText . boolToText $ op r1 r2)
+        _                  -> focus <$ (f . FText . boolToText $ op s1 s2)
+    ([FList lst1], [FList lst2]) ->
+        focus <$ (f . FText . boolToText $ all (uncurry op) $ zip lst1 lst2)

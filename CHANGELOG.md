@@ -27,3 +27,13 @@
 * fixed "regex" (it was very broken, lol)
 
 * added escaping support to string literals (only \\")
+
+## 0.2.1 -- 2024-03-15
+
+* rewrote the "if" and "filter" focusers
+
+* added "=", "!=", "<", ">", "<=", ">=", "&&", "||", "all", "any", "not" focusers
+
+* changed the collecting syntax from "<focuser>" to "%focuser"
+
+* added the "literal" focuser

@@ -3,17 +3,16 @@
 
 module Mappings where
 
-import           Common          (Evaluatable (..), Focus (FList, FText),
-                                  Focuser (..), Mapping, Range, getIndexes,
-                                  makeFilteredText, mapText,
-                                  showRational, toTextUnsafe, readMaybeRational)
-import           Control.Lens    ((^..))
-import           Data.Char       (toLower, toUpper)
-import           Data.Function   (on)
-import           Data.List       (sortBy)
-import           Data.Text       (Text)
-import qualified Data.Text       as T
-import           Text.Read       (readMaybe)
+import           Common        (Focus (FList, FText), Focuser (..), Mapping,
+                                Range, getIndexes, makeFilteredText, mapText,
+                                readMaybeRational, showRational, toTextUnsafe)
+import           Control.Lens  ((^..))
+import           Data.Char     (toLower, toUpper)
+import           Data.Function (on)
+import           Data.List     (sortBy)
+import           Data.Text     (Text)
+import qualified Data.Text     as T
+import           Text.Read     (readMaybe)
 
 mappingReverse :: Mapping
 mappingReverse (FList lst) = FList (reverse lst)
@@ -28,18 +27,14 @@ mappingMap mapping (FList lst) = FList $ map mapping lst
 mappingMap mapping (FText str) = FText $ T.concat $ mapText
     (toTextUnsafe . mapping . FText . T.singleton) str
 
-mappingAppend :: Evaluatable -> Mapping
-mappingAppend (EText str') (FText str) = FText $ T.append str str'
-mappingAppend (ENumber n) (FText str) = FText $ T.append str (showRational n)
-mappingAppend (EFocuser (FTrav trav)) fstr@(FText str) = case fstr ^.. trav of
+mappingAppend :: Focuser -> Mapping
+mappingAppend (FTrav trav) fstr@(FText str) = case fstr ^.. trav of
     [FText s] -> FText $ T.append str s
     _         -> fstr
 mappingAppend _ flist            = flist
 
-mappingPrepend :: Evaluatable -> Mapping
-mappingPrepend (EText str') (FText str) = FText $ T.append str' str
-mappingPrepend (ENumber n) (FText str) = FText $ T.append (showRational n) str
-mappingPrepend (EFocuser (FTrav trav)) fstr@(FText str) = case fstr ^.. trav of
+mappingPrepend :: Focuser -> Mapping
+mappingPrepend (FTrav trav) fstr@(FText str) = case fstr ^.. trav of
     [FText s] -> FText $ T.append s str
     _         -> fstr
 mappingPrepend _ flist            = flist
