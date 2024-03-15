@@ -41,7 +41,7 @@ Refer to the [building instructions](https://danryba253.github.io/smh-docs/getti
 * `smh 'words.if > len 3|get' < input_file` - display all words longer than 3 characters   
 * `smh 'words.[0]|over upper' "hello world"` - capitalize all words  
 * `smh 'lines.if startsWith "*".%words.[2]|get' < input_file` - display the third word in lines that start with an asterisk
-* `smh 'atKey "b"|over to %el.sum' '{"a": 1, "b": [1, 2, 3, 4, 5]}'` - sum the values of a JSON array at the "b" key of a JSON object.
+* `smh 'atKey "b"|over to %el.sum' '{"a": 1, "b": [1, 2, 3, 4, 5]}'` - sum the values of a JSON array at the "b" key of a JSON object
 * `'%(words.if isNumber)|get' < input_file` - get all numbers in a file
 
 <h2>Contributing</h2>
