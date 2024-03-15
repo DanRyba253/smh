@@ -34,6 +34,6 @@
 
 * added "=", "!=", "<", ">", "<=", ">=", "&&", "||", "all", "any", "not" focusers
 
-* changed the collecting syntax from "<focuser>" to "%focuser"
+* changed the collecting syntax from "\<focuser>" to "%focuser"
 
 * added the "literal" focuser
