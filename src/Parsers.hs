@@ -256,12 +256,12 @@ parseFocusAtIdx = do
 
 parseFocusAll :: Parser Focuser
 parseFocusAll = do
-    symbol "all "
+    lexeme $ string "all" >> notFollowedBy (satisfy isAlphaNum)
     focusLogicMany and <$> parseFocuser
 
 parseFocusAny :: Parser Focuser
 parseFocusAny = do
-    symbol "any "
+    lexeme $ string "any" >> notFollowedBy (satisfy isAlphaNum)
     focusLogicMany or <$> parseFocuser
 
 parseFocusAnd :: Parser Focuser
